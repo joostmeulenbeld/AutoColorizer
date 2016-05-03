@@ -25,7 +25,7 @@ class FruitFetcher:
 
         return ''.join(filter(lambda x: x in string.printable, s))
 
-    def flickr_url(self, photo, image_size='m'):
+    def flickr_url_from_photo_object(self, photo, image_size='q'):
         """Construct the static flickr url with which you can download the photo
         Input:
             photo object
@@ -34,12 +34,23 @@ class FruitFetcher:
             flickr static url
         """
         # return the url and the id of the photo
-        return 'https://farm{farm_id}.staticflickr.com/{server_id}/{id}_{secret}_{imsize}.jpg'.format(farm_id=1, # Default to farm 1
-            server_id=photo.get('server'), 
-            id=photo.get('id'), 
-            secret=photo.get('secret'), 
-            imsize=image_size)
+        return self.flickr_url({'id': photo.get('id'), 'server': photo.get('server'), 'secret': photo.get('secret')}, image_size = image_size)
 
+
+    def flickr_url(self, params, image_size='q'):
+        """Construct the static flickr url with which you can download the photo
+        Input:
+            parameter dictionary containing 'id', 'server', and 'secret'
+            image_size: see https://www.flickr.com/services/api/misc.urls.html
+        Output:
+            flickr static url
+        """
+        # return the url and the id of the photo
+        return 'https://farm{farm_id}.staticflickr.com/{server_id}/{id}_{secret}_{imsize}.jpg'.format(farm_id=1, # Default to farm 1
+            server_id=params['server'], 
+            id=params['id'], 
+            secret=params['secret'], 
+            imsize=image_size)
 
     def download_images(self, text='fruit', num_images=100000):
         """Download images with the given text, sorted on relevance
@@ -88,18 +99,24 @@ class FruitFetcher:
                     counter += 1
                     progress = ("({:" + str(2 + math.ceil(math.log10(num_images))) + 'd}/' + str(num_images) + ')').format(counter)
 
-                    url = self.flickr_url(photo)
+                    url = self.flickr_url_from_photo_object(photo)
                     # Add the image to the database (function returns the disk
                     # location where to store the image)
-                    filename = self.wrapper.add_image(photo.get('id'), photo.get('title'), url)
+                    filename = self.wrapper.add_image(photo.get('id'), photo.get('server'), photo.get('secret'), photo.get('title'))
                     urllib.request.urlretrieve(url, filename)  #Download the file to the local folder
                 
                     print(progress + " Image downloaded: " + photo.get('id'))
 
         #Get the new amount of photos in database and report amount of
         #downloaded images
+
         number_of_photos_new = self.wrapper.count_images()
         return (number_of_photos_new - number_of_photos_old)
+
+    def download_missing_images(self):
+        mising_images = self.wrapper.check_integrity()
+        for id in mising_images:
+            self.flickr_url(id)
 
 
 

@@ -24,6 +24,8 @@ class DBWrapper:
         self.conn = sqlite3.connect(self.dbname)
         self.cursor = self.conn.cursor()
         if create_table:
+            print("Database " + self.dbname + " was not found, creating a new database")
+            print("Current working directory: " + os.getcwd())
             self.setup_database()
 
     def clear_database(self, reallydoit=False):
@@ -48,7 +50,7 @@ class DBWrapper:
         """Call this function if no database has been setup yet"""
 
         self.cursor.execute('''CREATE TABLE images
-            (id text, title text, flickr_url text, checked integer, good integer);''')
+            (id text, server text, secret text, title text, checked integer, good integer);''')
         self.conn.commit()
         return self.cursor.fetchall()
 
@@ -108,22 +110,24 @@ class DBWrapper:
         results = [(id, self.path_to_image(id), checked, good) for (id, checked, good) in self.cursor]
         return results
 
-    def get_flickr_url(self, id):
-        """Return the flickr URL of a given image, identified by its id"""
+    def get_flickr_url_params(self, id):
+        """Return all parameters required to construct the Flickr URL"""
 
-        self.cursor.execute('''SELECT flickr_url FROM images WHERE id=?;''', (id,))
-        return self.cursor.fetchone()[0]
+        self.cursor.execute('''SELECT id, server, secret FROM images WHERE id=?;''', (id,))
+        result = self.cursor.fetchone()
+        params = {'id': id, 'server': result[1], 'secret': result[2]}
+        return params
 
 
-    def add_image(self, id, title, flickr_url, checked=0, good=0):
+    def add_image(self, id, server, secret, title, checked=0, good=0):
         """Add an image to the database. Defaults to the unchecked state
         IMPORTANT: returns the path under which to save the image!
         """
 
         checked = 0
         good = 0
-        query = '''INSERT INTO images (id, title, flickr_url, checked, good) VALUES (?,?,?,?,?)'''
-        data = (id, title, flickr_url, checked, good)
+        query = '''INSERT INTO images (id, server, secret, title, checked, good) VALUES (?,?,?,?,?,?)'''
+        data = (id, server, secret, title, checked, good)
         self.cursor.execute(query, data)
         self.conn.commit()
         return self.path_to_image(id)
@@ -160,6 +164,8 @@ class DBWrapper:
     def check_integrity(self, clean=False):
         """Check if all image files are in the database and all database entries have a file
         Set clean=True if you want to remove entries from database and files from directory if they don't match
+        
+        OUTPUT: list of ID's of database entries that don't have an associated file
         """
         #prepare the lists of files and database entries
         idlist_db = [id for (id,) in self.cursor.execute("SELECT id FROM images")]
@@ -179,6 +185,7 @@ class DBWrapper:
             for id in db_not_in_files:
                 print("Remove from database: " + id)
             self.cursor.executemany("DELETE FROM images WHERE id=?", [(i,) for i in db_not_in_files])
+        return db_not_in_files
 
 
 

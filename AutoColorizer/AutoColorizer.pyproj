@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>75169cdf-ad47-4929-8f8f-610cac2eecbd</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>FruitFetcher.py</StartupFile>
+    <StartupFile>DBWrapper.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
