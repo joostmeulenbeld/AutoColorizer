@@ -146,6 +146,7 @@ class DBWrapper:
         query = "UPDATE images SET checked={} WHERE id=?".format(str(checked))
         idlist = [(id,) for id in idlist]
         self.cursor.executemany(query, idlist)
+        self.conn.commit()
 
     def path_to_image(self, id, extension='jpg'):
         """Generate the path to an image based on its id, defaulting to .jpg"""
@@ -160,6 +161,7 @@ class DBWrapper:
         query = "UPDATE images SET good={} WHERE id=?".format(str(good))
         idlist = [(id,) for id in idlist]
         self.cursor.executemany(query, idlist)
+        self.conn.commit()
 
     def check_integrity(self, clean=False):
         """Check if all image files are in the database and all database entries have a file
@@ -185,6 +187,7 @@ class DBWrapper:
             for id in db_not_in_files:
                 print("Remove from database: " + id)
             self.cursor.executemany("DELETE FROM images WHERE id=?", [(i,) for i in db_not_in_files])
+            self.conn.commit()
         return db_not_in_files
 
 

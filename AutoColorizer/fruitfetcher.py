@@ -6,6 +6,8 @@ import math
 from datetime import date, timedelta
 from DBWrapper import DBWrapper
 import getapikey
+import shutil
+import requests
 
 class FruitFetcher:
     """Download images from flickr, save them to jpg files and save them to the databse"""
@@ -46,13 +48,13 @@ class FruitFetcher:
             flickr static url
         """
         # return the url and the id of the photo
-        return 'https://farm{farm_id}.staticflickr.com/{server_id}/{id}_{secret}_{imsize}.jpg'.format(farm_id=1, # Default to farm 1
+        return 'https://farm{farm_id}.staticflickr.com/{server_id}/{id}_{secret}_{imsize}.jpg'.format(farm_id=2, # Default to farm 1
             server_id=params['server'], 
             id=params['id'], 
             secret=params['secret'], 
             imsize=image_size)
 
-    def download_images(self, text='fruit', num_images=100000):
+    def download_images(self, text='fruit', num_images=10000):
         """Download images with the given text, sorted on relevance
         to make sure best images are downloaded first
         for every image, first the database is checked if the image is not already there.
@@ -71,7 +73,7 @@ class FruitFetcher:
 
         final_week_day = date.today()
         #loop over amount of weeks to go back in time (10 years)
-        for weeksback in range(0,520,1):
+        for weeksback in range(0,200,1):
 
             if counter > num_images:
                 break
@@ -79,16 +81,23 @@ class FruitFetcher:
             final_week_day -= timedelta(days=7)
             begin_week_day = final_week_day - timedelta(days=6)
 
-
-            for photo in self.flickr.walk(tag_mode='all',
+            # Start downloading images
+            for (counter_in_week, photo) in enumerate(self.flickr.walk(tag_mode='all',
                     text=text,
                     sort='relevance', #relevant photos first, otherwise the result is crap
                     min_taken_date=begin_week_day.isoformat(),
                     max_taken_date=final_week_day.isoformat(),
-                    per_page=100):
+                    per_page=100)):
+
+                # Download max 100 images from 1 single week to keep the quality high
+                if counter_in_week >= 100:
+                    print("Downloaded 100 images between " + begin_week_day.isoformat() + " and " + final_week_day.isoformat())
+                    break
 
                 if counter > num_images:
+                    print("Downloaded " + str(num_images) + " images, now stopping")
                     break
+
 
                 # Check if the photo ID is already in the database.  If so, go
                 # to the previous week
@@ -97,14 +106,20 @@ class FruitFetcher:
                     break
                 else:
                     counter += 1
+                    # Create (0005/1000) progress string
                     progress = ("({:" + str(2 + math.ceil(math.log10(num_images))) + 'd}/' + str(num_images) + ')').format(counter)
 
                     url = self.flickr_url_from_photo_object(photo)
                     # Add the image to the database (function returns the disk
                     # location where to store the image)
-                    filename = self.wrapper.add_image(photo.get('id'), photo.get('server'), photo.get('secret'), photo.get('title'))
-                    urllib.request.urlretrieve(url, filename)  #Download the file to the local folder
-                
+                    filename = self.wrapper.add_image(photo.get('id'), photo.get('server'), photo.get('secret'), self.__printable(photo.get('title')))
+                    
+                    response = requests.get(url)
+                    
+                    file = open(filename, 'wb')
+                    file.write(response.content)
+                    file.close()
+
                     print(progress + " Image downloaded: " + photo.get('id'))
 
         #Get the new amount of photos in database and report amount of
