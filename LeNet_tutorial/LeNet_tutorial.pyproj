@@ -22,7 +22,11 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="BuildNet.py" />
+    <Compile Include="ConvPoolLayer.py" />
+    <Compile Include="HiddenLayer.py" />
     <Compile Include="LeNet_tutorial.py" />
+    <Compile Include="LogisticRegression.py" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
