@@ -1,4 +1,4 @@
-import theano
+﻿import theano
 import numpy
 import theano.tensor as T
 import ConvPoolLayer
@@ -6,7 +6,7 @@ import HiddenLayer
 import LogisticRegression
 
 
-class JoostNet(object):
+class FruityFly(object):
     """Architecture of the model"""
 
     def __init__(self, batch_size, x, rng, nkerns):
