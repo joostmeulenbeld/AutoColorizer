@@ -2,14 +2,21 @@ import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
+from PIL import Image
+import pylab
 
 
 
-def fruityfly(input_var=None):
 
-    """ SETTINGS: """
-    filter_size = (3, 3) # The convolutional filter size (EVEN FILTER SIZE IS NOT SUPPORTED!)
-    pool_size = 2 # The pool size between layers
+def fruityfly(input_var=None,image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+    """ This function defines the architecture of the Fruit colorizer network 
+   
+    Input:
+    input_var: a theano.tensor.tensor4 (and after theano function creation the data of size(batch_size, 1, image_size[1], image_size[2])
+    image_size: the size of the images, a 2D tuple 
+    filter_size: The convolutional filter size, a 2D tuple (EVEN FILTER SIZE IS NOT SUPPORTED!)
+    pool_size: the max_pool filter size between layers (also the upscale factor!)
+    """
 
     # First make the input layer, batch size=none so any batch size will be accepted!
     # image size is 128x128
@@ -54,3 +61,39 @@ def fruityfly(input_var=None):
     L_out = lasagne.layers.Conv2DLayer(L_1, num_filters=2, filter_size=filter_size, pad='same')
 
     return L_out
+
+
+"""Test the function"""
+# open an image file, this will be in the form of (150, 150, 3)
+img = Image.open('test_image.jpg')
+# Convert to YUV colorspace
+img = img.convert('YCbCr')
+# resize to (128, 128, 3)
+img = img.resize((128,128),Image.BICUBIC)
+# show image
+
+# convert to np.array
+img_np = np.asarray(img, dtype='float32') / 256.
+# put image in 4D tensor of shape (1, 3, height, width)
+img_np = img_np.transpose(2, 0, 1)
+img_np = img_np[1,:,:]
+img_np = img_np.reshape(1, 1, 128, 128)
+
+print("Image loaded!")
+
+input = T.tensor4('input')
+network = fruityfly(input)
+
+output = lasagne.layers.get_output(network)
+eval_fn = theano.function([input],output)
+
+# Now evaluate the image:
+UV_out = eval_fn(img_np)
+
+print(UV_out.shape)
+
+# Nice now we have the UV values! 
+pylab.subplot(1, 3, 1); pylab.axis('off'); pylab.imshow(img)
+pylab.subplot(1, 3, 2); pylab.axis('off'); pylab.imshow(UV_out[0, 0, :, :])
+pylab.subplot(1, 3, 3); pylab.axis('off'); pylab.imshow(UV_out[0, 1, :, :])
+pylab.show()
