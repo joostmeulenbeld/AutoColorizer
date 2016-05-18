@@ -5,6 +5,9 @@ import lasagne
 from PIL import Image
 import pylab
 
+import sys
+import os
+import time
 
 
 
@@ -64,6 +67,30 @@ def fruityfly(input_var=None,image_size=(128, 128), filter_size = (3, 3), pool_s
 
 
 """Test the function"""
+input = T.tensor4('input')
+target = T.tensor4('target') # shape=(batch_size,2,image_x,image_y)
+network = fruityfly(input)
+
+# Get the output of the network
+output = lasagne.layers.get_output(network)
+
+# Get the mean squared error
+loss = lasagne.objectives.squared_error(output,target)
+loss = loss.mean()
+
+# Create update expressions for training, i.e., how to modify the
+# parameters at each training step. Here, we'll use Stochastic Gradient
+# Descent (SGD) with Nesterov momentum, but Lasagne offers plenty more.
+params = lasagne.layers.get_all_params(network, trainable=True)
+updates = lasagne.updates.nesterov_momentum(loss, params, learning_rate=0.01, momentum=0.9)
+
+
+eval_fn = theano.function([input],output)
+eval_fn2 = theano.function([input, target],[output, loss], updates=updates)
+
+
+
+
 # open an image file, this will be in the form of (150, 150, 3)
 img = Image.open('test_image.jpg')
 # Convert to YUV colorspace
@@ -76,27 +103,51 @@ img = img.resize((128,128),Image.BICUBIC)
 img_np = np.asarray(img, dtype='float32') / 256.
 # put image in 4D tensor of shape (1, 3, height, width)
 img_np = img_np.transpose(2, 0, 1)
+img_np_target = img_np[[1,2],:,:]
 img_np = img_np[1,:,:]
 img_np = img_np.reshape(1, 1, 128, 128)
+img_np_target = img_np_target.reshape(1, 2, 128, 128)
 
 print("Image loaded!")
 
-input = T.tensor4('input')
-network = fruityfly(input)
 
-output = lasagne.layers.get_output(network)
-eval_fn = theano.function([input],output)
+for epoch in range(500):
+    error = 0
+    start_time = time.time()
+    # Now evaluate the image:
+    UV_out, loss_out = eval_fn2(img_np, img_np_target)
 
-# Now evaluate the image:
-UV_out = eval_fn(img_np)
+    # Then we print the results for this epoch:
+    print("Epoch {} of {} took {:.3f}s".format(
+        epoch + 1, 500, time.time() - start_time))
+    print(loss_out)
+
+
 
 print(UV_out.shape)
+print(loss_out)
 
 # create image from output
-img_out = 
+img_out_np = np.stack( (img_np[0,0,:,:], UV_out[0, 0, :, :], UV_out[0, 1, :, :]) )
+Y = img_np[0,0,:,:]*256. #29
+U = UV_out[0,0,:,:]*256.
+V = UV_out[0,1,:,:]*256.
+plaatje = np.zeros((128,128,3), 'uint8')
+plaatje[..., 0] = Y
+plaatje[..., 1] = U
+plaatje[..., 2] = V
+img_test=Image.fromarray(plaatje,'YCbCr')
+img_test.show()
+print(img_out_np.shape) # size = (3, 128, 128)
+img_out_np = img_out_np.transpose(1, 2, 0)*256.
+img_out_np.astype('uint8')
+print(img_out_np.shape)
+
+img_out = Image.fromarray(img_out_np, 'YCbCr')
 
 # Nice now we have the UV values! 
-pylab.subplot(1, 3, 1); pylab.axis('off'); pylab.imshow(img)
-pylab.subplot(1, 3, 2); pylab.axis('off'); pylab.imshow(np.stack(UV_out[0, 0, :, :])
-pylab.subplot(1, 3, 3); pylab.axis('off'); pylab.imshow(UV_out[0, 1, :, :])
+pylab.subplot(2, 2, 1); pylab.axis('off'); pylab.imshow(img)
+pylab.subplot(2, 2, 2); pylab.axis('off'); pylab.imshow(img_out)
+pylab.subplot(2, 2, 3); pylab.axis('off'); pylab.imshow(UV_out[0, 0, :, :]); pylab.gray()
+pylab.subplot(2, 2, 4); pylab.axis('off'); pylab.imshow(UV_out[0, 1, :, :]); pylab.gray()
 pylab.show()
