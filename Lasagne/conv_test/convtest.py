@@ -92,8 +92,11 @@ UV_out = eval_fn(img_np)
 
 print(UV_out.shape)
 
+# create image from output
+img_out = 
+
 # Nice now we have the UV values! 
 pylab.subplot(1, 3, 1); pylab.axis('off'); pylab.imshow(img)
-pylab.subplot(1, 3, 2); pylab.axis('off'); pylab.imshow(UV_out[0, 0, :, :])
+pylab.subplot(1, 3, 2); pylab.axis('off'); pylab.imshow(np.stack(UV_out[0, 0, :, :])
 pylab.subplot(1, 3, 3); pylab.axis('off'); pylab.imshow(UV_out[0, 1, :, :])
 pylab.show()
