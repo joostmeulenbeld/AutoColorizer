@@ -8,9 +8,9 @@
 *.pyc
 AutoColorizer/images_jpg/*
 AutoColorizer/images_npy/*
-*.npy
+AutoColorizer/*/*.npy
 getapikey.py
-*.db
+AutoColorizer/*.db
 
 
 # Build results
