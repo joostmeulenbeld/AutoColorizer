@@ -1,16 +1,22 @@
 ﻿import urllib
 import sqlite3
 import os
+import convertimage
+from multiprocessing import Pool
+from math import floor
+from itertools import accumulate
+import errno
 
 class DBWrapper:
     """Wrapper for the sqlite database to add new images or get image file names"""
 
-    def __init__(self, images_folder='images', dbname='imagedb.db'):
+    def __init__(self, images_folder='images_jpg', dbname='imagedb.db', images_folder_npy='images_npy'):
         """Open connection to the database and create a cursor. Standard image folder: 'images'
         Don't forget to dbwrapper.close_connection() when done using the database
         """
 
         self.images_folder = images_folder
+        self.images_folder_npy = images_folder_npy
         self.dbname = dbname
         self.__open_connection()
 
@@ -79,7 +85,7 @@ class DBWrapper:
         self.cursor.execute(query)
         return self.cursor.fetchone()[0]
 
-    def get_jpg_filenames(self, bool_checked=2, bool_good=2, limit=-1):
+    def get_jpg_filenames(self, bool_checked=2, bool_good=2, limit=-1, random=True):
         """Returns a list of all relative paths to jpg files
         INPUT:
             The two bools specify whether to get only checked or good files: 
@@ -87,6 +93,7 @@ class DBWrapper:
                 1: yes, 
                 2: doesn't matter
             limit=-1: set the amount of file names to retrieve, limit=-1 doesn't limit amount
+            random=True: order the results randomly or sorted by id
 
         OUTPUT:
         List of tuples: [(id, path/to.jpg, checked, good), ...]
@@ -102,12 +109,14 @@ class DBWrapper:
                 query += " AND "
             if bool_good in [0,1]:
                 query += "good=" + str(bool_good)
+        if random:
+            query += " ORDER BY RANDOM() "
         if limit > -1:
             query += " LIMIT " + str(limit)
         query += ";"
 
         self.cursor.execute(query)
-        results = [(id, self.path_to_image(id), checked, good) for (id, checked, good) in self.cursor]
+        results = [(id, self.path_to_image_jpg(id), checked, good) for (id, checked, good) in self.cursor]
         return results
 
     def get_flickr_url_params(self, id):
@@ -130,7 +139,7 @@ class DBWrapper:
         data = (id, server, secret, title, checked, good)
         self.cursor.execute(query, data)
         self.conn.commit()
-        return self.path_to_image(id)
+        return self.path_to_image_jpg(id)
 
     def image_in_db(self, id):
         """Return 1 if an image ID is already in the database, 0 if it is not"""
@@ -148,9 +157,14 @@ class DBWrapper:
         self.cursor.executemany(query, idlist)
         self.conn.commit()
 
-    def path_to_image(self, id, extension='jpg'):
-        """Generate the path to an image based on its id, defaulting to .jpg"""
-        return os.path.join(self.images_folder, id + '.' + extension)
+    def path_to_image_jpg(self, id):
+        """Generate the path to an image in its jpg form based on its id"""
+        return os.path.join(self.images_folder, id + '.jpg')
+
+    def path_to_image_npy(self, id):
+        """Generate the path to an image in its numpy form based on its id"""
+        return os.path.join(self.images_folder_npy, id + '.npy')
+
 
     def set_good(self, idlist, good=0):
         """Set all images by ID good, 1=good, 0=not good"""
@@ -170,7 +184,7 @@ class DBWrapper:
         OUTPUT: list of ID's of database entries that don't have an associated file
         """
         #prepare the lists of files and database entries
-        idlist_db = [id for (id,) in self.cursor.execute("SELECT id FROM images")]
+        idlist_db = [id for (id,) in self.cursor.execute("SELECT id FROM images;")]
         idlist_files = [os.path.splitext(filename)[0] for filename in os.listdir(self.images_folder)]
         #compare them and get exclusive ones
         db_not_in_files = set(idlist_db)-set(idlist_files)
@@ -181,7 +195,7 @@ class DBWrapper:
         #clean entries from database and files
         if clean:
             for id in files_not_in_db:
-                path = self.path_to_image(id)
+                path = self.path_to_image_jpg(id)
                 print("Remove file: " + path)
                 os.remove(path)
             for id in db_not_in_files:
@@ -190,16 +204,101 @@ class DBWrapper:
             self.conn.commit()
         return db_not_in_files
 
+    def create_numpy_files(self):
+        """Get all id's from database, check numpy folder for these images, and create missing files
+        This is not used at the time; rather only numpy files of complete batches are saved by create_training_sets
+        """
+
+        # Get all images in the database that are checked and found good
+        idlist_db = set([id for (id,) in self.cursor.execute("SELECT id FROM images;")])
+
+        # Get all files that are already converted (remove the file extension to obtain image ID)
+        idlist_files = set([os.path.splitext(filename)[0] for filename in os.listdir(self.images_folder_npy)])
+
+        # Calculate the missing files
+        missing_files = idlist_db - idlist_files
+        print("Number of numpy files to be created: " + str(len(missing_files)))
+
+        # Convert the missing files
+        pool = Pool(processes=os.cpu_count())
+        pool.map(self.convert_jpg_image_to_numpy_by_id, missing_files)
+
+    def get_ids(self, bool_checked=2, bool_good=2, limit=-1):
+        return [id for (id,_,_,_) in self.get_jpg_filenames(bool_checked=bool_checked, bool_good=bool_good, limit=limit)]
+
+    def create_training_sets(self, imagesize=150, batch_size=50, fractions=(0.5, 0.25, 0.25), foldernames=("training", "validation", "test")):
+        """Create training/test/validations sets (can be any amount of sets)
+        INPUT:
+            batch_size: training batch size
+            fractions: tuple containing the fractions of the training/validation/test sets (sum should be 1)
+            foldername: tuple containing the folder names of the different sets
+        """
+        if len(fractions) != len(foldernames):
+            print("number of fractions does not match number of folders")
+            return
+
+        if sum(fractions) != 1:
+            print("sum of fractions is not equal to 1")
+            return
+
+        # Try to create all folders required
+        for folder in foldernames:
+            try:
+                os.makedirs(folder)
+            except OSError as exception:
+                if exception.errno != errno.EEXIST:
+                    raise
+
+        convertimage.check_image_dimensions([jpgfilename for (_,jpgfilename,_,_) in self.get_jpg_filenames()], clean=True)
+        self.check_integrity(clean=True)
+
+        #self.create_numpy_files()
+
+        # Get list of good image ID's
+        good_image_ids = self.get_ids(bool_checked=1, bool_good=1)
+        
+        # Get the number of good images
+        number_good_images = len(good_image_ids)
+
+        # Calculate no of batches per set
+        number_of_batches_per_set = list(map(lambda fraction: floor((number_good_images*fraction)/batch_size), fractions))
+        number_of_batches_per_set_cum = [0]
+        number_of_batches_per_set_cum.extend(list(accumulate(number_of_batches_per_set)))
+
+        # Create the batches of image ID's
+        batches = [good_image_ids[i:i+batch_size] for i in range(0, number_good_images, batch_size)]
+        batches_per_set = [batches[number_of_batches_per_set_cum[i]:number_of_batches_per_set_cum[i+1]] for i in range(len(number_of_batches_per_set_cum)-1)]
+        for (i_set, batches_this_set) in enumerate(batches_per_set):
+            for (i_batch, batch) in enumerate(batches_this_set):
+                print("set " + foldernames[i_set] + ", batch: " + str(i_batch+1) + " of " + str(len(batches_this_set)))
+                jpgfilenames = [self.path_to_image_jpg(id) for id in batch]
+                npyfilename = os.path.join(foldernames[i_set], 'batch_' + str(i_batch) + '.npy')
+                convertimage.create_batch_and_save(jpgfilenames, npyfilename, imagesize)
+
+    def convert_jpg_image_to_numpy_by_id(self, id):
+        """Convert a specific image from jpg to npy format by id"""
+        print("Converting image: " + id)
+        convertimage.convert_image_to_YCbCr_and_save(self.path_to_image_jpg(id), self.path_to_image_npy(id))
+
+
+
 
 
 if __name__ == "__main__":
     wrapper = DBWrapper(dbname='imagedb.db')
     
     # Check integrity of the database:
-    wrapper.check_integrity(clean=True)
+    #wrapper.check_integrity(clean=True)
 
     #Get paths to files:
-    #print(wrapper.get_jpg_filenames(bool_checked=0, limit=4))
+    #ids = [id for (id,_,_,_) in wrapper.get_jpg_filenames(bool_checked=2, bool_good=2, limit=-1)]
+    #print(len(ids))
+    #wrapper.set_checked(ids)
+    #print('set_checked done')
+    #wrapper.set_good(ids, good=1)
+    #print('set_good done')
+
+    wrapper.create_training_sets(imagesize=128)
 
     #Update certain parts, idlist contains a list of ID's [ID1, ID2 etc]
     #wrapper.set_checked(idlist, checked=1)

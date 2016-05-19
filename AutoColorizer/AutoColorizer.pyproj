@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>75169cdf-ad47-4929-8f8f-610cac2eecbd</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>DBWrapper.py</StartupFile>
+    <StartupFile>dbwrapper.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -23,8 +23,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="AutoColorizer.py" />
-    <Compile Include="DBWrapper.py" />
-    <Compile Include="FruitFetcher.py" />
+    <Compile Include="convertimage.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="dbwrapper.py" />
+    <Compile Include="fruitfetcher.py" />
     <Compile Include="getapikey.py" />
   </ItemGroup>
   <PropertyGroup>

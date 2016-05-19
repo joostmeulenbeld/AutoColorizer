@@ -4,7 +4,7 @@ import string
 import urllib.request
 import math
 from datetime import date, timedelta
-from DBWrapper import DBWrapper
+from dbwrapper import DBWrapper
 import getapikey
 import shutil
 import requests
@@ -54,7 +54,7 @@ class FruitFetcher:
             secret=params['secret'], 
             imsize=image_size)
 
-    def download_images(self, text='fruit', num_images=10000):
+    def download_images(self, text='fruit', num_images=20000):
         """Download images with the given text, sorted on relevance
         to make sure best images are downloaded first
         for every image, first the database is checked if the image is not already there.
@@ -73,7 +73,7 @@ class FruitFetcher:
 
         final_week_day = date.today()
         #loop over amount of weeks to go back in time (10 years)
-        for weeksback in range(0,200,1):
+        for weeksback in range(0,3000,1):
 
             if counter > num_images:
                 break

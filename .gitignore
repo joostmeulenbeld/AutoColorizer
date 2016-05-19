@@ -6,8 +6,11 @@
 *.user
 *.sln.docstates
 *.pyc
-AutoColorizer/images/*
+AutoColorizer/images_jpg/*
+AutoColorizer/images_npy/*
+AutoColorizer/*/*.npy
 getapikey.py
+AutoColorizer/*.db
 
 
 # Build results
