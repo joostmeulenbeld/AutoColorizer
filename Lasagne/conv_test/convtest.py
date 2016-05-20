@@ -1,4 +1,4 @@
-import numpy as np
+﻿import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
@@ -61,11 +61,11 @@ def fruityfly(input_var=None,image_size=(128, 128), filter_size = (3, 3), pool_s
     
 
     # Convolve L_1 to fit the desired output
-    L_out = lasagne.layers.batch_norm(lasagne.layers.Conv2DLayer(L_1, num_filters=2, filter_size=filter_size, pad='same', 
-                                       nonlinearity=lasagne.nonlinearities.linear))
+    L_out = lasagne.layers.Conv2DLayer(L_1, num_filters=2, filter_size=filter_size, pad='same', 
+                                       nonlinearity=lasagne.nonlinearities.linear)
 
     return L_out
-print('created network!')
+
 
 """Test the function"""
 input = T.tensor4('input')
@@ -78,21 +78,35 @@ output = lasagne.layers.get_output(network)
 
 # Get the mean squared error
 loss = lasagne.objectives.squared_error(output,target)
-loss = lasagne.objectives.aggregate(loss, mode='sum')
-loss = T.sqrt(loss)
+loss_sum = lasagne.objectives.aggregate(loss, mode='sum')
+
 
 # Create update expressions for training, i.e., how to modify the
 # parameters at each training step. Here, we'll use Stochastic Gradient
 # Descent (SGD) with Nesterov momentum, but Lasagne offers plenty more.
 params = lasagne.layers.get_all_params(network, trainable=True)
-updates = lasagne.updates.adagrad(loss, params, learning_rate=1.05, epsilon=1e-06)#, momentum=0.9)
+updates = lasagne.updates.adadelta(loss_sum, params, learning_rate=1, rho=0.9, epsilon=1e-06)#, momentum=0.9)
 
 
 eval_fn = theano.function([input],output)
-eval_fn2 = theano.function([input, target],[output, loss], updates=updates)
+val_fn = theano.function([input, target],[output, loss_sum])
+train_fn = theano.function([input, target],[output, loss, loss_sum], updates=updates)
 
 print('created functions!')
-######## 1 image test ############
+
+########### Batch file training ################
+#open batch file and create input and target
+batch = np.load("batch_45.npy")/np.float32(256)
+batch_target = batch[:,[1,2],:,:]
+batch_target = batch_target.reshape(50,2,128,128)
+batch_input = batch[:,0,:,:]
+batch_input = batch_input.reshape(50,1,128,128)
+#create 1 image to feed trough from batch
+batch_image=batch[0,:,:,:]
+batch_image_input = batch[0,0,:,:]
+batch_image_input = batch_image_input.reshape(1,1,128,128)
+
+######## Load 1 test image ############
 # open an image file, this will be in the form of (150, 150, 3)
 img = Image.open('test_image.jpg')
 # Convert to YUV colorspace
@@ -110,40 +124,46 @@ img_np = img_np[1,:,:]
 img_np = img_np.reshape(1, 1, 128, 128)
 img_np_target = img_np_target.reshape(1, 2, 128, 128)
 
-########### Batch file test ################
-#open batch file and create input and target
-batch = np.load("batch_45.npy")/np.float32(256)
-batch_target = batch[:,[1,2],:,:]
-batch_target = batch_target.reshape(50,2,128,128)
-batch_input = batch[:,0,:,:]
-batch_input = batch_input.reshape(50,1,128,128)
-#create 1 image to feed trough from batch
-batch_image=batch[0,:,:,:]
-batch_image_input = batch[0,0,:,:]
-batch_image_input = batch_image_input.reshape(1,1,128,128)
 
-print("Image loaded!")
+print("Images loaded!")
+print("Start training!")
 
-
-for epoch in range(3000):
+n_epoch = 300
+for epoch in range(n_epoch):
     error = 0
     start_time = time.time()
     # Now evaluate the image:
-    UV_out, loss_out = eval_fn2(batch_input, batch_target)
+    # Loop over each image induvidually 
+    n_img_per_batch = 50
+    for im in range(n_img_per_batch):
+        im_in = batch[im,0,:,:].reshape(1,1,128,128)
+        im_target = batch[im,[1,2],:,:].reshape(1,2,128,128)
+        UV_out, loss_out, loss_sum_out = train_fn(im_in, im_target)
+        error += loss_sum_out
+
+    ######### Validate the network ##########
+    #Feed 1 image through net 
+    error_val = 0
+    UV_out_val, error_val = val_fn(img_np, img_np_target)
+
+
     # Then we print the results for this epoch:
     print("Epoch {} of {} took {:.3f}s".format(
-        epoch + 1, 150, time.time() - start_time))
-    print(loss_out)
+        epoch + 1, n_epoch, time.time() - start_time))
+    print("Train error: {!s:}".format(error/n_img_per_batch))
+    print("Validation error: {!s:}".format(error_val))
 
-    
-#Feed 1 image through net 
-UV_out_image = eval_fn(img_np)
+
+
 #save parameters
-W_save = lasagne.layers.get_all_param_values(network)
-np.save("W_save_3000.npy",W_save)
+#W_save = lasagne.layers.get_all_param_values(network)
+#np.save("W_save_3000.npy",W_save)
 
 #create image from batch
 Y_out = batch_image_input*256.
+# Get the output of the network
+UV_out_image = eval_fn(batch_image_input)
+# Convert it to show the image!
 U_out = UV_out_image[0,0,:,:]*256
 V_out = UV_out_image[0,1,:,:]*256
 img_out_1 = np.zeros((128,128,3), 'uint8')
@@ -167,8 +187,8 @@ print("succes")
 
 ## create image from output
 Y = img_org[:,:,0] #29
-U = UV_out[0,0,:,:]*256.
-V = UV_out[0,1,:,:]*256.
+U = UV_out_val[0,0,:,:]*256.
+V = UV_out_val[0,1,:,:]*256.
 plaatje = np.zeros((128,128,3), 'uint8')
 plaatje[..., 0] = Y
 plaatje[..., 1] = U
