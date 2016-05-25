@@ -46,10 +46,10 @@ class DBWrapper:
             self.setup_database()
             print("Done!")
 
-        
-    def close_connection(self):
-        """Close the database connection"""
 
+    def close_connection(self):
+        """Close the database connection after committing any uncommitted results"""
+        self.conn.commit()
         self.conn.close()
 
     def setup_database(self):
@@ -62,9 +62,9 @@ class DBWrapper:
 
     def count_images(self, bool_checked=2, bool_good=2):
         """Returns the number of images in the database
-        The two bools: 
-            0: no, 
-            1: yes, 
+        The two bools:
+            0: no,
+            1: yes,
             2: doesn't matter
         """
         if bool_checked not in [0,1,2] or bool_good not in [0,1,2]:
@@ -88,9 +88,9 @@ class DBWrapper:
     def get_jpg_filenames(self, bool_checked=2, bool_good=2, limit=-1, random=True):
         """Returns a list of all relative paths to jpg files
         INPUT:
-            The two bools specify whether to get only checked or good files: 
-                0: no, 
-                1: yes, 
+            The two bools specify whether to get only checked or good files:
+                0: no,
+                1: yes,
                 2: doesn't matter
             limit=-1: set the amount of file names to retrieve, limit=-1 doesn't limit amount
             random=True: order the results randomly or sorted by id
@@ -128,7 +128,7 @@ class DBWrapper:
         return params
 
 
-    def add_image(self, id, server, secret, title, checked=0, good=0):
+    def add_image(self, id, server, secret, title, checked=0, good=0, commit=True):
         """Add an image to the database. Defaults to the unchecked state
         IMPORTANT: returns the path under which to save the image!
         """
@@ -138,7 +138,8 @@ class DBWrapper:
         query = '''INSERT INTO images (id, server, secret, title, checked, good) VALUES (?,?,?,?,?,?)'''
         data = (id, server, secret, title, checked, good)
         self.cursor.execute(query, data)
-        self.conn.commit()
+        if commit:
+            self.conn.commit()
         return self.path_to_image_jpg(id)
 
     def image_in_db(self, id):
@@ -180,7 +181,7 @@ class DBWrapper:
     def check_integrity(self, clean=False):
         """Check if all image files are in the database and all database entries have a file
         Set clean=True if you want to remove entries from database and files from directory if they don't match
-        
+
         OUTPUT: list of ID's of database entries that don't have an associated file
         """
         #prepare the lists of files and database entries
@@ -249,22 +250,21 @@ class DBWrapper:
                 if exception.errno != errno.EEXIST:
                     raise
 
+        self.check_integrity(clean=True)
         convertimage.check_image_dimensions([jpgfilename for (_,jpgfilename,_,_) in self.get_jpg_filenames()], clean=True)
         self.check_integrity(clean=True)
 
-        #self.create_numpy_files()
-
         # Get list of good image ID's
-        good_image_ids = self.get_ids(bool_checked=1, bool_good=1)
-        
+        good_image_ids = self.get_ids(bool_checked=2, bool_good=2)
+
         # Get the number of good images
         number_good_images = len(good_image_ids)
 
-        # Calculate no of batches per set
-        number_of_batches_per_set = list(map(lambda fraction: floor((number_good_images*fraction)/batch_size), fractions))
+        # Calculate number of batches per set
+        number_of_batches_per_set = [floor((number_good_images*fraction)/batch_size) for fraction in fractions]
         number_of_batches_per_set_cum = [0]
         number_of_batches_per_set_cum.extend(list(accumulate(number_of_batches_per_set)))
-
+        print(number_of_batches_per_set)
         # Create the batches of image ID's
         batches = [good_image_ids[i:i+batch_size] for i in range(0, number_good_images, batch_size)]
         batches_per_set = [batches[number_of_batches_per_set_cum[i]:number_of_batches_per_set_cum[i+1]] for i in range(len(number_of_batches_per_set_cum)-1)]
@@ -285,8 +285,8 @@ class DBWrapper:
 
 
 if __name__ == "__main__":
-    wrapper = DBWrapper(dbname='imagedb.db')
-    
+    wrapper = DBWrapper(dbname='landscapedb.db')
+
     # Check integrity of the database:
     #wrapper.check_integrity(clean=True)
 
@@ -298,7 +298,7 @@ if __name__ == "__main__":
     #wrapper.set_good(ids, good=1)
     #print('set_good done')
 
-    wrapper.create_training_sets(imagesize=128)
+    wrapper.create_training_sets(imagesize=128, batch_size=25, fractions=(0.8, 0.1, 0.1))
 
     #Update certain parts, idlist contains a list of ID's [ID1, ID2 etc]
     #wrapper.set_checked(idlist, checked=1)
