@@ -89,7 +89,7 @@ class colorizer(object):
         if not isinstance(n_validation_batches,int):
             # Now just take all the batches
             # get number of batches
-            n_batches = len(os.listdir('validation'))
+            n_validation_batches = len(os.listdir('validation'))
 
         for epoch in range(n_epoch):
             # Set errors to zero for this epoch
@@ -115,7 +115,7 @@ class colorizer(object):
                 # update the error
                 train_error += loss
                 # Print (update) progress
-                print(" Progress: {:3.1f}%            \r".format(counter/(n_batches + n_validation_batches))*100,end="")
+                print(" Progress: {:3.1f}%            \r".format(counter/(n_batches+ n_validation_batches)*100),end="")
                 counter += 1
 
             ######### Validate the network ##########
@@ -127,14 +127,14 @@ class colorizer(object):
                 _, loss_val = self.val_fn(batch_input, batch_target)
                 validation_error += loss_val
                 # Print (update) progress
-                print(" Progress: {:3.1f}%            \r".format(counter/(n_batches + n_validation_batches))*100,end="")
+                print(" Progress: {:3.1f}%            \r".format(counter/(n_batches + n_validation_batches)*100),end="")
                 counter += 1
 
 
             ######### Done now lets print! #########
             # Store the errors in the error log
             if not(self.error_log is None):
-                self.error_log = np.append(self.error_log, np.array([[epoch, train_error/n_batches, validation_error/n_validation_batches]]), axis=0)
+                self.error_log = np.append(self.error_log, np.array([[epoch, train_error/(n_batches), validation_error/(n_validation_batches)]]), axis=0)
 
             ## plot the errors:
             #plot.cla()
