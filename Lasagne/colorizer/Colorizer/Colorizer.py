@@ -1,19 +1,21 @@
-import numpy as np
+﻿import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
 from PIL import Image
+from scipy.ndimage.filters import gaussian_filter
 
 import matplotlib.pyplot as plot
 
 import sys
 import os
+from glob import glob
 import time
 import logging
 
 class colorizer(object):
 
-    def __init__(self, param_file=None, logging_file='log.log'):
+    def __init__(self, param_file=None, error_filename=None):
 
         # Create the network here and all the theano functions
         print("Initializing the network")
@@ -44,18 +46,50 @@ class colorizer(object):
         # Descent (SGD) with adadelta.
         params = lasagne.layers.get_all_params(self.network, trainable=True)
         updates = lasagne.updates.adadelta(loss, params, learning_rate=1, rho=0.9, epsilon=1e-06)#, momentum=0.9)
+        # Add neserov momentum
+        updates = lasagne.updates.apply_nesterov_momentum(updates,params,momentum=0.9)
 
         # Create theano functions to be used in the functions
         self.eval_fn = theano.function([input],output)
         self.val_fn = theano.function([input, target],[output, loss])
         self.train_fn = theano.function([input, target],[output, loss], updates=updates)
 
+        # Check if the training errors need to be stored in a file
+        if not(error_filename is None):
+            # Check if there is a file already with the training errors
+            if glob(error_filename + '*'):
+                # Yes it exists so open it!
+                self.error_log = np.load(error_filename + '.npy')
+            else:
+                # No so create it.
+                self.error_log = np.empty((0,3))
+        else:
+            # Now just put the self.error log to none
+            self.error_log = None
+        self.error_filename = error_filename
+
+
+
         print("Initialized the network")
 
 
-    def train_network(self,n_epoch = 20 , n_batches = 100, n_validation_batches = 2, param_save_file=None):
+    def train_network(self,n_epoch = 20 , n_batches = 'all', n_validation_batches = 'all', param_save_file=None):
 
         print("Start training! \n")
+
+        # Start plot for errors
+        #plot.axis([0,n_epoch,0,1])
+        #plot.ion()
+
+        if not isinstance(n_batches,int):
+            # Now just take all the batches
+            # get number of batches
+            n_batches = len(os.listdir('training'))
+
+        if not isinstance(n_validation_batches,int):
+            # Now just take all the batches
+            # get number of batches
+            n_batches = len(os.listdir('validation'))
 
         for epoch in range(n_epoch):
             # Set errors to zero for this epoch
@@ -67,13 +101,22 @@ class colorizer(object):
 
             ######### Train the network #########
             # Loop over the training batches
-            for batch_id in range(n_batches):
+            # Do this random so make a shuffled index list
+            batch_ids = np.arange(n_batches)
+            np.random.shuffle(batch_ids)
+            counter = 0
+            for batch_id in batch_ids:
                 # Get the batch
                 batch_input, batch_target = self.get_batch(batch_id,folder='training')
+                # Blur the batch target:
+                batch_target = self.blur_batch_target(batch_target)
                 # Train the network
                 UV_out, loss = self.train_fn(batch_input, batch_target)
                 # update the error
                 train_error += loss
+                # Print (update) progress
+                print(" Progress: {:3.1f}%            \r".format(counter/(n_batches + n_validation_batches))*100,end="")
+                counter += 1
 
             ######### Validate the network ##########
             # Loop over the validating batches
@@ -83,8 +126,24 @@ class colorizer(object):
                 # Get the error
                 _, loss_val = self.val_fn(batch_input, batch_target)
                 validation_error += loss_val
+                # Print (update) progress
+                print(" Progress: {:3.1f}%            \r".format(counter/(n_batches + n_validation_batches))*100,end="")
+                counter += 1
+
 
             ######### Done now lets print! #########
+            # Store the errors in the error log
+            if not(self.error_log is None):
+                self.error_log = np.append(self.error_log, np.array([[epoch, train_error/n_batches, validation_error/n_validation_batches]]), axis=0)
+
+            ## plot the errors:
+            #plot.cla()
+            #plot.plot(self.error_log[:,0],self.error_log[:,1], label='Train error')
+            #plot.plot(self.error_log[:,0],self.error_log[:,2], label='Validation error')
+            #plot.legend()
+            #plot.draw()
+
+
             # print the results for this epoch:
             print("---------------------------------------")
             print("Epoch {} of {} took {:.3f}s".format(epoch + 1, n_epoch, time.time() - start_time))
@@ -93,14 +152,20 @@ class colorizer(object):
 
             if not(param_save_file is None) and ((epoch % 5) == 0):
                 # Save parameters every 10 epochs
-                np.save(param_save_file,lasagne.layers.get_all_param_values(self.network))
+                np.save(param_save_file[:-4] + str(epoch) + '.npy',lasagne.layers.get_all_param_values(self.network))
                 print("Stored the parameters to file: {}".format(param_save_file))
         
         # Store the final parameters!
         if not(param_save_file is None):
-                # Save parameters every 10 epochs
-                np.save(param_save_file,lasagne.layers.get_all_param_values(self.network))
-                print("Stored the final parameters to file: {}".format(param_save_file))
+            # Save parameters
+            np.save(param_save_file,lasagne.layers.get_all_param_values(self.network))
+            print("Stored the final parameters to file: {}".format(param_save_file))
+
+        # Store the error values
+        if not(self.error_log is None):
+            # Save the errors
+            np.save(self.error_filename + '.npy',self.error_log)
+            print("Stored the error values to the file: {}".format(self.error_filename + '.npy'))
 
         print("Done training the network")
 
@@ -139,7 +204,7 @@ class colorizer(object):
         ## Now Construct the image again!
         # Get the batch norm and reduce feature maps to fit previous layer
         L_3 = lasagne.layers.batch_norm(L_3)
-        L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=12, filter_size=(1,1), pad='same')
+        L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=48, filter_size=(1,1), pad='same')
         # Upscale layer 3 to fit L2 size
         L_3 = lasagne.layers.Upscale2DLayer(L_3, scale_factor=pool_size)
 
@@ -147,7 +212,8 @@ class colorizer(object):
         L_2 = lasagne.layers.batch_norm(L_2)
         L_2 = lasagne.layers.concat([L_2, L_3])
         # Convolve L_2 to fit feature maps to L1
-        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=3, filter_size=filter_size, pad='same')
+        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=48, filter_size=filter_size, pad='same')
+        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=12, filter_size=filter_size, pad='same')
         # Upscale L_2 to fit L_1 size
         L_2 = lasagne.layers.Upscale2DLayer(L_2, scale_factor=pool_size)
     
@@ -155,6 +221,8 @@ class colorizer(object):
         L_1 = lasagne.layers.batch_norm(L_1)
         L_1 = lasagne.layers.concat([L_1, L_2])
         # Convolve L_1 to fit feature maps to L1
+        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=12, filter_size=filter_size, pad='same')
+        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=6, filter_size=filter_size, pad='same')
         L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=3, filter_size=filter_size, pad='same')
     
 
@@ -184,6 +252,27 @@ class colorizer(object):
         batch_input = batch_input.reshape(batch_size,1,image_x,image_y)
 
         return [batch_input, batch_target]
+
+    def blur_target(self,target, sigma=5):
+        """This function blurs the target of shape = (1,2,image_x,image_y)"""
+        img_shape = target.shape
+        target[0,:,:] = gaussian_filter(target[0,:,:],sigma).reshape(1,img_shape[1],img_shape[2])
+        target[1,:,:] = gaussian_filter(target[1,:,:],sigma).reshape(1,img_shape[1],img_shape[2])
+        return target
+
+    def blur_batch_target(self,batch_target,sigma=5):
+        """This function blurs the batch target"""
+
+        # Get the shape of the batch (batch_size, 2, image_x, image_y)
+        batch_shape = batch_target.shape
+
+        # Loop over the batch
+        for index in range(batch_shape[0]):
+            # Blur each target
+            batch_target[index,:,:,:] = self.blur_target(batch_target[index,:,:,:]).reshape(1,2,batch_shape[2],batch_shape[3])
+
+        return batch_target
+
 
     def NNout2img(self,NN_input,NN_output):
         """This function generates an image from the output of the NN (and combining it with the grayscale input)"""
