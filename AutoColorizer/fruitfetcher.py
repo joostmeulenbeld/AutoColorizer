@@ -8,20 +8,22 @@ from dbwrapper import DBWrapper
 import getapikey
 import shutil
 import requests
+from multiprocessing import Pool
+import random
 
 class FruitFetcher:
     """Download images from flickr, save them to jpg files and save them to the databse"""
 
-    def __init__(self):
+    def __init__(self, dbname='imagedb.db'):
         """Initialise fruitfetcher with the given api key and api secret"""
-        self.wrapper = DBWrapper(dbname='imagedb.db')
+        self.wrapper = DBWrapper(dbname=dbname)
 
         self.api_key, self.api_secret = getapikey.getkey()
         self.flickr = flickrapi.FlickrAPI(self.api_key, self.api_secret, format='etree')
 
 
     def __printable(self, s):
-        """Remove all non-printable characters from the array (some photo titles have
+        """Remove all non-printable characters from a string (some photo titles have
         strange characters)
         """
 
@@ -42,17 +44,32 @@ class FruitFetcher:
     def flickr_url(self, params, image_size='q'):
         """Construct the static flickr url with which you can download the photo
         Input:
-            parameter dictionary containing 'id', 'server', and 'secret'
+            params: parameter dictionary containing 'id', 'server', and 'secret'
             image_size: see https://www.flickr.com/services/api/misc.urls.html
         Output:
             flickr static url
         """
         # return the url and the id of the photo
-        return 'https://farm{farm_id}.staticflickr.com/{server_id}/{id}_{secret}_{imsize}.jpg'.format(farm_id=2, # Default to farm 1
-            server_id=params['server'], 
-            id=params['id'], 
-            secret=params['secret'], 
+        return 'https://farm{farm_id}.staticflickr.com/{server_id}/{id}_{secret}_{imsize}.jpg'.format(farm_id=random.randint(1,9), # Default to farm 1
+            server_id=params['server'],
+            id=params['id'],
+            secret=params['secret'],
             imsize=image_size)
+
+    def flickr_url_from_id(self, id, image_size='q'):
+        """Construct the static flickr url based on the image id alone, fetching
+        the rest of required information from the database.
+        Input:
+            id: id of the image to be converted to a URL
+            image_size='q': see https://www.flickr.com/services/api/misc.urls.html
+        Output:
+            flickr static url
+        """
+        params = self.wrapper.get_flickr_url_params(id)
+        return self.flickr_url(params, image_size)
+
+
+
 
     def download_images(self, text='fruit', num_images=20000):
         """Download images with the given text, sorted on relevance
@@ -91,13 +108,12 @@ class FruitFetcher:
 
                 # Download max 100 images from 1 single week to keep the quality high
                 if counter_in_week >= 100:
-                    print("Downloaded 100 images between " + begin_week_day.isoformat() + " and " + final_week_day.isoformat())
+                    print("Added 100 images between " + begin_week_day.isoformat() + " and " + final_week_day.isoformat())
                     break
 
                 if counter > num_images:
-                    print("Downloaded " + str(num_images) + " images, now stopping")
+                    print("Added " + str(num_images) + " images in total, now stopping")
                     break
-
 
                 # Check if the photo ID is already in the database.  If so, go
                 # to the previous week
@@ -107,37 +123,45 @@ class FruitFetcher:
                 else:
                     counter += 1
                     # Create (0005/1000) progress string
+                    self.wrapper.add_image(photo.get('id'), photo.get('server'), photo.get('secret'), self.__printable(photo.get('title')), commit=False)
                     progress = ("({:" + str(2 + math.ceil(math.log10(num_images))) + 'd}/' + str(num_images) + ')').format(counter)
-
-                    url = self.flickr_url_from_photo_object(photo)
-                    # Add the image to the database (function returns the disk
-                    # location where to store the image)
-                    filename = self.wrapper.add_image(photo.get('id'), photo.get('server'), photo.get('secret'), self.__printable(photo.get('title')))
-                    
-                    response = requests.get(url)
-                    
-                    file = open(filename, 'wb')
-                    file.write(response.content)
-                    file.close()
-
-                    print(progress + " Image downloaded: " + photo.get('id'))
+                    print(progress + " Image added to db: " + photo.get('id'))
 
         #Get the new amount of photos in database and report amount of
         #downloaded images
-
+        self.wrapper.conn.commit()
+        self.download_missing_images()
         number_of_photos_new = self.wrapper.count_images()
         return (number_of_photos_new - number_of_photos_old)
 
     def download_missing_images(self):
-        mising_images = self.wrapper.check_integrity()
-        for id in mising_images:
-            self.flickr_url(id)
+
+        missing_images = self.wrapper.check_integrity()
+        download_params = ((self.flickr_url_from_id(id), self.wrapper.path_to_image_jpg(id), ''.join(["Downloaded (", str(i), "/", str(len(missing_images)), ")"])) for (i, id) in enumerate(missing_images))
+
+        with Pool(2) as pool:
+            print(pool.map(download_image, download_params))
 
 
+def download_image(params):
+    """Download an image to disk given only the image id and image size
+    Input:
+        params: tuple containing (url, path_to_jpg_to_save[, text])
+        specify text if you want a certain text to be displayed
+    """
+    url = params[0]
+    response = requests.get(url)
+    filename = params[1]
+
+    with open(filename, 'wb') as f:
+        f.write(response.content)
+    if len(params) == 3:
+        print(params[2])
 
 if __name__ == "__main__":
-    ff = FruitFetcher()
-    #ff.wrapper.clear_database(reallydoit=True)
-    print("Number of downloaded images: " + str(ff.download_images()))
+    ff = FruitFetcher(dbname='landscapedb.db')
+    ff.download_missing_images()
+    # ff.wrapper.clear_database(reallydoit=True)
+    # print("Number of downloaded images: " + str(ff.download_images(text='landscape', num_images=20000)))
     #ff.wrapper.check_integrity(clean=False)
-    print(ff.wrapper.count_images(bool_checked=1))
+    # print(ff.wrapper.count_images(bool_checked=1))

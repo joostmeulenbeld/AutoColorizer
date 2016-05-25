@@ -63,10 +63,15 @@ def show_YCbCr_image(numpyfilename):
 
 def check_image_dimensions(jpgfilenames, clean=False, correctsize=(150,150,3)):
     for jpgfilename in jpgfilenames:
-        shape = np.asarray(Image.open(jpgfilename)).shape
+        try:
+            im = Image.open(jpgfilename)
+            shape = np.asarray(im).shape
 
-        if not (len(shape)==3 and all([correctsize[i]==shape[i] for i in range(len(correctsize))])):
-            print("Incorrect: " + str(shape) + ", " + jpgfilename)
+            if not (len(shape)==3 and all([correctsize[i]==shape[i] for i in range(len(correctsize))])):
+                print("Incorrect: " + str(shape) + ", " + jpgfilename)
+                if clean:
+                    os.remove(jpgfilename)
+        except OSError:
             if clean:
                 os.remove(jpgfilename)
 
