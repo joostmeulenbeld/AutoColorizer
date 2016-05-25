@@ -1,13 +1,13 @@
 ﻿from Colorizer import colorizer
 
 # Load network + add param
-param_file = 'params_landscape_new_net_blur5.npy'
-error_filename = 'error_landscape_new_net_blur'
+param_file = None
+error_filename = 'error_landscape' # DO NOT add .npy!!
 NNcolorizer = colorizer(param_file=param_file,error_filename=error_filename)
 
 # Train the network, save param to file
-param_save_file = 'params_landscape_new_net_blur.npy'
-NNcolorizer.train_network(10,100,2,param_save_file)
+param_save_file = 'params_landscape.npy'
+NNcolorizer.train_network(3,'all','all',param_save_file)
 
 # Show some random images
 NNcolorizer.show_random_images(5)

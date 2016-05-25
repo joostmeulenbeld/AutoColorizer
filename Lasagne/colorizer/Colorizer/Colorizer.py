@@ -26,7 +26,7 @@ class colorizer(object):
         # Create the neural network
         self.network = self.fruityfly(input)
 
-        # Set weights if given
+        # Set params if given
         if not(param_file is None):
             param_load = np.load(param_file)
             lasagne.layers.set_all_param_values(self.network, param_load)
@@ -36,8 +36,8 @@ class colorizer(object):
         output = lasagne.layers.get_output(self.network)
 
         # Get the sum squared error per image
-        loss = lasagne.objectives.squared_error(output,target)
-        loss = loss.sum(axis=[1,2,3])
+        loss = lasagne.objectives.squared_error(output,target) # shape = (batch_size, 2, image_x, image_y)
+        loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
         # And take the mean over the batch
         loss = loss.mean()
 
@@ -45,7 +45,7 @@ class colorizer(object):
         # parameters at each training step. Here, we'll use Stochastic Gradient
         # Descent (SGD) with adadelta.
         params = lasagne.layers.get_all_params(self.network, trainable=True)
-        updates = lasagne.updates.adadelta(loss, params, learning_rate=1, rho=0.9, epsilon=1e-06)#, momentum=0.9)
+        updates = lasagne.updates.adadelta(loss, params, learning_rate=1, rho=0.9, epsilon=1e-06)
         # Add neserov momentum
         updates = lasagne.updates.apply_nesterov_momentum(updates,params,momentum=0.9)
 
@@ -188,37 +188,56 @@ class colorizer(object):
         # Pad = same for keeping the dimensions equal to the input!
         L_1 = lasagne.layers.Conv2DLayer(L_input, num_filters=3, filter_size=filter_size, pad='same')
         L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=12, filter_size=filter_size, pad='same')
+        # Take the batch norm
+        L_1 = lasagne.layers.batch_norm(L_1)
 
         # Define the second layer
         # Max pool on first layer
         L_2 = lasagne.layers.MaxPool2DLayer(L_1, pool_size=pool_size)
         L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=48, filter_size=filter_size, pad='same')
         L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=48, filter_size=filter_size, pad='same')
+        # Take the batch norm
+        L_2 = lasagne.layers.batch_norm(L_2)
 
         # Define the third layer
         # Max pool on the second layer
         L_3 = lasagne.layers.MaxPool2DLayer(L_2, pool_size=pool_size)
         L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=96, filter_size=filter_size, pad='same')
         L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=96, filter_size=filter_size, pad='same')
+        # Take the batch norm
+        L_3 = lasagne.layers.batch_norm(L_3)
+
+        # Define the fourth layer
+        # Max pool on the second layer
+        L_4 = lasagne.layers.MaxPool2DLayer(L_3, pool_size=pool_size)
+        L_4 = lasagne.layers.Conv2DLayer(L_4, num_filters=192, filter_size=filter_size, pad='same')
+        L_4 = lasagne.layers.Conv2DLayer(L_4, num_filters=192, filter_size=filter_size, pad='same')
     
         ## Now Construct the image again!
         # Get the batch norm and reduce feature maps to fit previous layer
-        L_3 = lasagne.layers.batch_norm(L_3)
-        L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=48, filter_size=(1,1), pad='same')
+        L_4 = lasagne.layers.Conv2DLayer(L_4, num_filters=96, filter_size=(1,1), pad='same')
+        L_4 = lasagne.layers.batch_norm(L_4)
         # Upscale layer 3 to fit L2 size
+        L_4 = lasagne.layers.Upscale2DLayer(L_4, scale_factor=pool_size)
+
+        # Concate with L_3
+        L_3 = lasagne.layers.concat([L_3, L_4])
+        L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=96, filter_size=filter_size, pad='same')
+        L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=48, filter_size=filter_size, pad='same')
+        L_3 = lasagne.layers.batch_norm(L_3)
+        # Upscale L_3 to fit L_2 size
         L_3 = lasagne.layers.Upscale2DLayer(L_3, scale_factor=pool_size)
 
-        # Get the batch norm of L_2 and concate with L_3
-        L_2 = lasagne.layers.batch_norm(L_2)
+        # Concate with L_2
         L_2 = lasagne.layers.concat([L_2, L_3])
         # Convolve L_2 to fit feature maps to L1
         L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=48, filter_size=filter_size, pad='same')
         L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=12, filter_size=filter_size, pad='same')
+        L_2 = lasagne.layers.batch_norm(L_2)
         # Upscale L_2 to fit L_1 size
         L_2 = lasagne.layers.Upscale2DLayer(L_2, scale_factor=pool_size)
     
         # Do the same for layer 1
-        L_1 = lasagne.layers.batch_norm(L_1)
         L_1 = lasagne.layers.concat([L_1, L_2])
         # Convolve L_1 to fit feature maps to L1
         L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=12, filter_size=filter_size, pad='same')
