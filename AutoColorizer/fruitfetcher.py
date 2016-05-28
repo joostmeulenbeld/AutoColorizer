@@ -14,9 +14,9 @@ import random
 class FruitFetcher:
     """Download images from flickr, save them to jpg files and save them to the databse"""
 
-    def __init__(self, dbname='imagedb.db'):
+    def __init__(self, dbname='imagedb.db', images_folder='images_jpg'):
         """Initialise fruitfetcher with the given api key and api secret"""
-        self.wrapper = DBWrapper(dbname=dbname)
+        self.wrapper = DBWrapper(dbname=dbname, images_folder=images_folder)
 
         self.api_key, self.api_secret = getapikey.getkey()
         self.flickr = flickrapi.FlickrAPI(self.api_key, self.api_secret, format='etree')
@@ -104,10 +104,10 @@ class FruitFetcher:
                     sort='relevance', #relevant photos first, otherwise the result is crap
                     min_taken_date=begin_week_day.isoformat(),
                     max_taken_date=final_week_day.isoformat(),
-                    per_page=100)):
+                    per_page=50)):
 
                 # Download max 100 images from 1 single week to keep the quality high
-                if counter_in_week >= 100:
+                if counter_in_week >= 50:
                     print("Added 100 images between " + begin_week_day.isoformat() + " and " + final_week_day.isoformat())
                     break
 
@@ -126,10 +126,10 @@ class FruitFetcher:
                     self.wrapper.add_image(photo.get('id'), photo.get('server'), photo.get('secret'), self.__printable(photo.get('title')), commit=False)
                     progress = ("({:" + str(2 + math.ceil(math.log10(num_images))) + 'd}/' + str(num_images) + ')').format(counter)
                     print(progress + " Image added to db: " + photo.get('id'))
+            self.wrapper.conn.commit()
 
         #Get the new amount of photos in database and report amount of
         #downloaded images
-        self.wrapper.conn.commit()
         self.download_missing_images()
         number_of_photos_new = self.wrapper.count_images()
         return (number_of_photos_new - number_of_photos_old)
@@ -139,7 +139,7 @@ class FruitFetcher:
         missing_images = self.wrapper.check_integrity()
         download_params = ((self.flickr_url_from_id(id), self.wrapper.path_to_image_jpg(id), ''.join(["Downloaded (", str(i), "/", str(len(missing_images)), ")"])) for (i, id) in enumerate(missing_images))
 
-        with Pool(2) as pool:
+        with Pool(16) as pool:
             print(pool.map(download_image, download_params))
 
 
@@ -159,9 +159,11 @@ def download_image(params):
         print(params[2])
 
 if __name__ == "__main__":
-    ff = FruitFetcher(dbname='landscapedb.db')
+    ff = FruitFetcher(dbname='fruitcloseupdb.db', images_folder='fruit_jpg')
+    # ff.download_images(text='vegetable closeup', num_images=10000)
     ff.download_missing_images()
+
     # ff.wrapper.clear_database(reallydoit=True)
     # print("Number of downloaded images: " + str(ff.download_images(text='landscape', num_images=20000)))
-    #ff.wrapper.check_integrity(clean=False)
+    ff.wrapper.clean_database()
     # print(ff.wrapper.count_images(bool_checked=1))

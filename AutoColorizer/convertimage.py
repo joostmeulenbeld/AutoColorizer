@@ -2,6 +2,7 @@
 from PIL import Image
 import os
 import numpy as np
+from skimage import io, color
 
 
 def convert_image_to_YCbCr_and_save(jpgfilename, numpyfilename, imagesize=150):
@@ -11,11 +12,10 @@ def convert_image_to_YCbCr_and_save(jpgfilename, numpyfilename, imagesize=150):
         numpyfilename: path to the location to store the numpy array
         imagesize: size to scale the image to
     """
-    np.save(numpyfilename, convert_image_to_YCbCr(jpgfilename, imagesize))
+    np.save(numpyfilename, load_image(jpgfilename, imagesize, convert_to_YCbCr=True))
 
-
-def convert_image_to_YCbCr(jpgfilename, imagesize=150):
-    """Open a .jpg file and convert it to YCbCr
+def load_image(jpgfilename, imagesize=150, convert_to_YCbCr=False):
+    """Open a .jpg file and resize it
     INPUTS:
         jpgiflename: path to JPG file
         outputsize: size of the (square) image in pixels
@@ -26,9 +26,10 @@ def convert_image_to_YCbCr(jpgfilename, imagesize=150):
     im = Image.open(jpgfilename)
     if im.size != (imagesize, imagesize):
         im.thumbnail((imagesize, imagesize))
-    im = im.convert("YCbCr")
-    # Return the layers of the image in numpy format
-    return np.asarray(im)
+    if convert_to_YCbCr:
+        im = im.convert("YCbCr")
+    return im
+
 
 def create_batch_and_save(batch_jpgfilenames, numpyfilename, imagesize=150):
     """given a list of jpg filenames, create a batch numpy array in correct format and save to numpyfilename
@@ -40,8 +41,7 @@ def create_batch_and_save(batch_jpgfilenames, numpyfilename, imagesize=150):
     nparrays = []
     for jpgfilename in batch_jpgfilenames:
         #append the image to the array with right dimensions: [channel, height, width]
-        new_array = np.transpose(convert_image_to_YCbCr(jpgfilename, imagesize), [2,0,1])
-        #print(jpgfilename + ", size: " + str(new_array.shape))
+        new_array = np.transpose(color.rgb2lab(load_image(jpgfilename, imagesize)), [2,0,1])
         nparrays.append(new_array)
 
     stacked_array = np.stack(nparrays)

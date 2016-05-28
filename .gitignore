@@ -6,6 +6,8 @@
 *.user
 *.sln.docstates
 *.pyc
+AutoColorizer/*.zip
+AutoColorizer/*/*.jpg
 AutoColorizer/images_jpg/*
 AutoColorizer/images_npy/*
 AutoColorizer/*/*.npy

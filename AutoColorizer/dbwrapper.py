@@ -205,6 +205,13 @@ class DBWrapper:
             self.conn.commit()
         return db_not_in_files
 
+    def clean_database(self):
+        """Clean the database and folder;
+        WARNING: this may remove images and database entries"""
+        self.check_integrity(clean=True)
+        convertimage.check_image_dimensions([jpgfilename for (_,jpgfilename,_,_) in self.get_jpg_filenames()], clean=True)
+        self.check_integrity(clean=True)
+
     def create_numpy_files(self):
         """Get all id's from database, check numpy folder for these images, and create missing files
         This is not used at the time; rather only numpy files of complete batches are saved by create_training_sets
@@ -227,7 +234,7 @@ class DBWrapper:
     def get_ids(self, bool_checked=2, bool_good=2, limit=-1):
         return [id for (id,_,_,_) in self.get_jpg_filenames(bool_checked=bool_checked, bool_good=bool_good, limit=limit)]
 
-    def create_training_sets(self, imagesize=150, batch_size=50, fractions=(0.5, 0.25, 0.25), foldernames=("training", "validation", "test")):
+    def create_training_sets(self, imagesize=150, batch_size=50, fractions=(0.5, 0.25, 0.25), foldernames=("training", "validation", "test"), prefix=""):
         """Create training/test/validations sets (can be any amount of sets)
         INPUT:
             batch_size: training batch size
@@ -250,12 +257,10 @@ class DBWrapper:
                 if exception.errno != errno.EEXIST:
                     raise
 
-        self.check_integrity(clean=True)
-        convertimage.check_image_dimensions([jpgfilename for (_,jpgfilename,_,_) in self.get_jpg_filenames()], clean=True)
-        self.check_integrity(clean=True)
+        self.clean_database()
 
         # Get list of good image ID's
-        good_image_ids = self.get_ids(bool_checked=2, bool_good=2)
+        good_image_ids = self.get_ids(bool_checked=1, bool_good=1)
 
         # Get the number of good images
         number_good_images = len(good_image_ids)
@@ -272,7 +277,7 @@ class DBWrapper:
             for (i_batch, batch) in enumerate(batches_this_set):
                 print("set " + foldernames[i_set] + ", batch: " + str(i_batch+1) + " of " + str(len(batches_this_set)))
                 jpgfilenames = [self.path_to_image_jpg(id) for id in batch]
-                npyfilename = os.path.join(foldernames[i_set], 'batch_' + str(i_batch) + '.npy')
+                npyfilename = os.path.join(foldernames[i_set], prefix + '_batch_' + str(i_batch) + '.npy')
                 convertimage.create_batch_and_save(jpgfilenames, npyfilename, imagesize)
 
     def convert_jpg_image_to_numpy_by_id(self, id):
@@ -285,10 +290,10 @@ class DBWrapper:
 
 
 if __name__ == "__main__":
-    wrapper = DBWrapper(dbname='landscapedb.db')
+    wrapper = DBWrapper(dbname='fruitcloseupdb.db', images_folder='fruit_jpg')
 
+    wrapper.clean_database()
     # Check integrity of the database:
-    #wrapper.check_integrity(clean=True)
 
     #Get paths to files:
     #ids = [id for (id,_,_,_) in wrapper.get_jpg_filenames(bool_checked=2, bool_good=2, limit=-1)]
@@ -298,7 +303,7 @@ if __name__ == "__main__":
     #wrapper.set_good(ids, good=1)
     #print('set_good done')
 
-    wrapper.create_training_sets(imagesize=128, batch_size=25, fractions=(0.8, 0.1, 0.1))
+    wrapper.create_training_sets(imagesize=128, batch_size=25, fractions=(0.9, 0.1), foldernames=('training', 'validation'), prefix="fruit")
 
     #Update certain parts, idlist contains a list of ID's [ID1, ID2 etc]
     #wrapper.set_checked(idlist, checked=1)
