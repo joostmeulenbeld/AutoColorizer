@@ -28,7 +28,7 @@ def load_image(jpgfilename, imagesize=150, convert_to_YCbCr=False):
         im.thumbnail((imagesize, imagesize))
     if convert_to_YCbCr:
         im = im.convert("YCbCr")
-    return im
+    return np.array(im)
 
 
 def create_batch_and_save(batch_jpgfilenames, numpyfilename, imagesize=150):
@@ -41,7 +41,7 @@ def create_batch_and_save(batch_jpgfilenames, numpyfilename, imagesize=150):
     nparrays = []
     for jpgfilename in batch_jpgfilenames:
         #append the image to the array with right dimensions: [channel, height, width]
-        new_array = np.transpose(color.rgb2lab(load_image(jpgfilename, imagesize)), [2,0,1])
+        new_array = np.transpose(load_image(jpgfilename, imagesize=imagesize), [2,0,1])
         nparrays.append(new_array)
 
     stacked_array = np.stack(nparrays)
