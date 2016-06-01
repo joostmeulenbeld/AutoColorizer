@@ -126,7 +126,6 @@ class NNPreprocessor(object):
 
         # Get the shape of the batch (batch_size, 2, image_x, image_y)
         batch_shape = batch.shape
-        print(batch_shape)
         # Define gaussian blur standard deviation
         sigma = 3
 
@@ -134,7 +133,6 @@ class NNPreprocessor(object):
         for index in range(batch_shape[0]):
             # Get an image from the batch and change axis directions to match normal specification (x, y, n_channels)
             image = np.transpose(batch[index,:,:,:], [1,2,0])
-            print(image.shape)
             image = color.rgb2lab(image)
 
             if self.blur:
@@ -151,5 +149,5 @@ if __name__ == "__main__":
     nnp = NNPreprocessor(5, "testing_files", blur=True)
 
     # Test processing of a single batch
-    testbatch = np.load(os.path.join("testing_files", "testbatch.npy"))
-    nnp._process_batch(testbatch)
+    # testbatch = np.load(os.path.join("testing_files", "testbatch.npy"))
+    # nnp._process_batch(testbatch)
