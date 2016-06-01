@@ -133,6 +133,7 @@ class NNPreprocessor(object):
         pool_list = [superbatch[index:index+self._batch_size, :, :, :] for index in range(0, superbatch_size, self._batch_size)]
         print(pool_list[0].shape)
         # Pool: process batches
+        t = time()
         processed_batches = self._p.starmap(_process_batch, [(batch, self._blur) for batch in pool_list])
         print(time() - t)
         for batch in processed_batches:
