@@ -9,33 +9,36 @@ from queue import Queue
 class NNPreprocessor(object):
     """This class preprocesses the batches previously generated"""
     
-    def __init__(self, batch_size, folder, random_superbatches=True, blur=False, randomize=True):
+    def __init__(self, batch_size, folder, random_superbatches=True, blur=False, randomize=True, workers=16):
         """ INPUT:
                     batch_size: amount of images returned by get batch, (needed for preloading)
                     folder: the folder where the batches are stored (as .npy files)   
                     random_superbatches: Open the superbatch files in a random order if True 
                     blur: Blur the target output of every batch (obtained by get_batch) if True, (needed for preloading)
                     randomize: randomize the image order inside the superbatch if True, (needed for preloading)
+                    workers: number of workers to do the batch processing
         """
 
-        self.batch_size = batch_size
-        self.folder = folder
-        self.random_superbatches = random_superbatches
-        self.blur = blur
-        self.randomize = randomize
+        self._batch_size = batch_size
+        self._folder = folder
+        self._random_superbatches = random_superbatches
+        self._blur = blur
+        self._randomize = randomize
 
         # Create queue for the batches
-        self.batch_queue = Queue()
+        self._batch_queue = Queue()
 
         # Create queue for the superbatches
-        self.superbatch_queue = Queue()
+        self._superbatch_queue = Queue()
 
         # self.filenames 
         try: 
-            self.filenames = os.listdir(folder)
+            self._filenames = os.listdir(folder)
         except:
             print("Folder does not exist")
-          
+        
+        # Create pool for processing images in superbatch
+        self._p = Pool(workers)
                  
 
 
@@ -44,14 +47,12 @@ class NNPreprocessor(object):
                     a batch of shape=(batch_size, 3, image_x, image_y)
         """
         # if batch array is empty, call _proces_next_superbatch, save result in self.batches
-        if self.batch_queue.empty:
+        if self._batch_queue.empty:
             self._process_next_superbatch()
 
         # return next item in array (pop)
         return batch_queue.get()
         
-        
-        pass
 
     def get_image(self, superbatch_id, image_id, blur=False):
         """ INPUT:
@@ -94,12 +95,23 @@ class NNPreprocessor(object):
             Pupulate the self.batch_queue    
         """
         # if the superbatch queue has no items, repopulate superbatch queue (in random order if needed)
+        if self._superbatch_queue.empty():
+
+            if  self._random_superbatches:
+                # randomize file list
+                np.random.shuffle(self._filenames)
+
+            # Add to queue
+            [self._superbatch_queue.put(filename) for filename in self._filenames]
+            
 
         # load superbatch numpy array by taking superbatch_queue.get()
-        
-        # process next superbatch (get)
+        filename = self._superbatch_queue.get()
+        superbatch = np.load(os.path.join(self._folder,filename))
 
-        pass
+        # process next superbatch
+        self._process_next_superbatch(superbatch)
+
 
     def _process_superbatch(self, superbatch):
         """ INPUT:
@@ -108,13 +120,19 @@ class NNPreprocessor(object):
                     processed superbatch (gets settings as provided by the constructor)
         """
 
+        # get superbatch size
+        (superbatch_size,_,_,_) = superbatch.shape
+
         # randomize the images inside the superbatch if needed
+        if self._randomize:
+            np.random.shuffle(superbatch)
 
         # split superbatch
+        # create a list of numpy arrays of shape=(batch_size, 3, image_x, image_y)
+        pool_list = [superbatch[index:index+self._batch_size, :, :, :] for index in range(0, superbatch_size, self._batch_size)]
 
         # Pool: process batches
-
-        pass
+        self._p.map(self._process_batch, pool_list)
 
     def _process_batch(self, batch):
         """ INPUT:
