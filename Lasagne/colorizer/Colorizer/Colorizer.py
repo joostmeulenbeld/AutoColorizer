@@ -116,6 +116,7 @@ class Colorizer(object):
         OUTPUT:
                 a list containing the batch_input and the batch_target: [batch_input, batch_target]
         """
+        (batch_size,_,image_x,image_y) = batch.shape
 
         # target is the UV layers
         batch_target = batch[:,[1,2],:,:]

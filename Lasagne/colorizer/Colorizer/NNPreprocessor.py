@@ -8,6 +8,7 @@ from time import time
 import random
 
 
+
 class NNPreprocessor(object):
     """This class preprocesses the batches previously generated"""    
 
@@ -102,7 +103,7 @@ class NNPreprocessor(object):
         superbatch = np.load(os.path.join(self._folder, superbatchlist[superbatchnr]), mmap_mode='r')
         # pick a random image from the superbatch
         imagenr = random.randint(0, superbatch.shape[0]-1)
-        #return the image using the found indices
+        # return the image using the found indices
         return self.get_image(superbatchnr, imagenr, blur)
 
 
@@ -149,7 +150,9 @@ class NNPreprocessor(object):
         # create a list of numpy arrays of shape=(batch_size, 3, image_x, image_y)
         pool_list = [superbatch[index:index+self._batch_size, :, :, :] for index in range(0, superbatch_size, self._batch_size)]
         # Pool: process batches
+        t = time()
         processed_batches = self._p.starmap(_process_batch, [(batch, self._blur) for batch in pool_list])
+        print("Processed batches in: {} [s]".format(time()-t))
         for batch in processed_batches:
             self._batch_queue.put(batch)
 
@@ -184,11 +187,4 @@ def _process_batch(batch, blur):
     return batch
 
 
-#if __name__ == "__main__":
-#    nnp = NNPreprocessor(5, "testing_files", blur=True)
-
-#    print(nnp.get_batch().shape)
-#    # Test processing of a single batch
-#    # testbatch = np.load(os.path.join("testing_files", "testbatch.npy"))
-#    # nnp._process_batch(testbatch)
-
+    
