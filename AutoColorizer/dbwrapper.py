@@ -260,7 +260,7 @@ class DBWrapper:
         self.clean_database()
 
         # Get list of good image ID's
-        good_image_ids = self.get_ids(bool_checked=1, bool_good=1)
+        good_image_ids = self.get_ids(bool_checked=2, bool_good=2)
 
         # Get the number of good images
         number_good_images = len(good_image_ids)
@@ -290,9 +290,9 @@ class DBWrapper:
 
 
 if __name__ == "__main__":
-    wrapper = DBWrapper(dbname='fruitcloseupdb.db', images_folder='fruit_jpg')
+    wrapper = DBWrapper(dbname='flower.db', images_folder='flower_jpg')
 
-    wrapper.clean_database()
+    # wrapper.clean_database()
     # Check integrity of the database:
 
     #Get paths to files:
@@ -303,7 +303,7 @@ if __name__ == "__main__":
     #wrapper.set_good(ids, good=1)
     #print('set_good done')
 
-    wrapper.create_training_sets(imagesize=128, batch_size=25, fractions=(0.9, 0.1), foldernames=('training', 'validation'), prefix="fruit")
+    wrapper.create_training_sets(imagesize=128, batch_size=25, fractions=(0.9, 0.1), foldernames=('training', 'validation'), prefix="landscape")
 
     #Update certain parts, idlist contains a list of ID's [ID1, ID2 etc]
     #wrapper.set_checked(idlist, checked=1)

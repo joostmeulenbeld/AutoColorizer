@@ -89,8 +89,8 @@ class FruitFetcher:
         number_of_photos_old = self.wrapper.count_images()
 
         final_week_day = date.today()
-        #loop over amount of weeks to go back in time (10 years)
-        for weeksback in range(0,3000,1):
+        #loop over amount of weeks to go back in time (15 years)
+        for weeksback in range(0, 52*15, 1):
 
             if counter > num_images:
                 break
@@ -106,9 +106,9 @@ class FruitFetcher:
                     max_taken_date=final_week_day.isoformat(),
                     per_page=50)):
 
-                # Download max 100 images from 1 single week to keep the quality high
+                # Download max 50 images from 1 single week to keep the quality high
                 if counter_in_week >= 50:
-                    print("Added 100 images between " + begin_week_day.isoformat() + " and " + final_week_day.isoformat())
+                    print("Added 50 images between " + begin_week_day.isoformat() + " and " + final_week_day.isoformat())
                     break
 
                 if counter > num_images:
@@ -126,7 +126,7 @@ class FruitFetcher:
                     self.wrapper.add_image(photo.get('id'), photo.get('server'), photo.get('secret'), self.__printable(photo.get('title')), commit=False)
                     progress = ("({:" + str(2 + math.ceil(math.log10(num_images))) + 'd}/' + str(num_images) + ')').format(counter)
                     print(progress + " Image added to db: " + photo.get('id'))
-            self.wrapper.conn.commit()
+        self.wrapper.conn.commit()
 
         #Get the new amount of photos in database and report amount of
         #downloaded images
@@ -159,8 +159,8 @@ def download_image(params):
         print(params[2])
 
 if __name__ == "__main__":
-    ff = FruitFetcher(dbname='fruitcloseupdb.db', images_folder='fruit_jpg')
-    # ff.download_images(text='vegetable closeup', num_images=10000)
+    ff = FruitFetcher(dbname='landscape.db', images_folder='landscape_jpg')
+    ff.download_images(text='landscape', num_images=20000)
     ff.download_missing_images()
 
     # ff.wrapper.clear_database(reallydoit=True)
