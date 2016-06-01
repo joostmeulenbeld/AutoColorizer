@@ -241,6 +241,7 @@ class DBWrapper:
             fractions: tuple containing the fractions of the training/validation/test sets (sum should be 1)
             foldername: tuple containing the folder names of the different sets
         """
+
         if len(fractions) != len(foldernames):
             print("number of fractions does not match number of folders")
             return
@@ -248,6 +249,8 @@ class DBWrapper:
         if sum(fractions) != 1:
             print("sum of fractions is not equal to 1")
             return
+
+        foldernames = [prefix+"_"+foldername for foldername in foldernames]
 
         # Try to create all folders required
         for folder in foldernames:
@@ -303,7 +306,7 @@ if __name__ == "__main__":
     #wrapper.set_good(ids, good=1)
     #print('set_good done')
 
-    wrapper.create_training_sets(imagesize=128, batch_size=25, fractions=(0.9, 0.1), foldernames=('training', 'validation'), prefix="landscape")
+    wrapper.create_training_sets(imagesize=128, batch_size=1000, fractions=(1.0,), foldernames=('training',), prefix="flower")
 
     #Update certain parts, idlist contains a list of ID's [ID1, ID2 etc]
     #wrapper.set_checked(idlist, checked=1)
