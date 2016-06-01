@@ -1,6 +1,11 @@
 ﻿## Just run the script here that you want :)
 
-import train_network
+#import train_network
+
+from NNPreprocessor import NNPreprocessor
+
+beun = NNPreprocessor(10,'bla')
+
 #import show_images
 
 #import numpy as np

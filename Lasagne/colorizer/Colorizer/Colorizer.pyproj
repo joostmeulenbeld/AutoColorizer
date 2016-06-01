@@ -26,6 +26,9 @@
     <Compile Include="main.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="NNPreprocessor.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="show_images.py">
       <SubType>Code</SubType>
     </Compile>
