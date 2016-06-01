@@ -2,19 +2,16 @@
 import theano
 import theano.tensor as T
 import lasagne
-from PIL import Image
-from scipy.ndimage.filters import gaussian_filter
-
-import matplotlib.pyplot as plot
-import sys
-import os
-from glob import glob
-import time
-
 
 class Colorizer(object):
+    """This class defines the neural network and functions to colorize images"""
 
-    def __init__(self, param_file=None, error_filename=None):
+    def __init__(self, param_file=None):
+        """ 
+        INPUT:
+                param_file: the location of the file where all the trained parameters of the network are stored
+                            i.e.: 'parameters.npy' or None for random initialization
+        """
 
         # Create the network here and all the theano functions
         print("Initializing the network")
@@ -23,16 +20,16 @@ class Colorizer(object):
         target = T.tensor4('target') # shape=(batch_size,2,image_x,image_y)
 
         # Create the neural network
-        self.network = self.fruityfly(input)
+        self._network = self._NN(input)
 
         # Set params if given
         if not(param_file is None):
             param_load = np.load(param_file)
-            lasagne.layers.set_all_param_values(self.network, param_load)
+            lasagne.layers.set_all_param_values(self._network, param_load)
             print("Loaded param file: {}".format(param_file))
 
         # Get the output of the network
-        output = lasagne.layers.get_output(self.network)
+        output = lasagne.layers.get_output(self._network)
 
         # Get the sum squared error per image
         loss = lasagne.objectives.squared_error(output,target) # shape = (batch_size, 2, image_x, image_y)
@@ -42,143 +39,104 @@ class Colorizer(object):
 
         # Create update expressions for training, i.e., how to modify the
         # parameters at each training step. Here, we'll use Stochastic Gradient
-        # Descent (SGD) with adadelta.
-        params = lasagne.layers.get_all_params(self.network, trainable=True)
+        # Descent (SGD) with adadelta and nesterov momentum.
+        params = lasagne.layers.get_all_params(self._network, trainable=True)
         updates = lasagne.updates.adadelta(loss, params, learning_rate=1, rho=0.9, epsilon=1e-06)
-        # Add neserov momentum
+        # Add nesterov momentum
         updates = lasagne.updates.apply_nesterov_momentum(updates,params,momentum=0.9)
 
         # Create theano functions to be used in the functions
-        self.eval_fn = theano.function([input],output)
-        self.val_fn = theano.function([input, target],[output, loss])
-        self.train_fn = theano.function([input, target],[output, loss], updates=updates)
-
-        # Check if the training errors need to be stored in a file
-        if not(error_filename is None):
-            # Check if there is a file already with the training errors
-            if glob(error_filename + '*'):
-                # Yes it exists so open it!
-                self.error_log = np.load(error_filename + '.npy')
-            else:
-                # No so create it.
-                self.error_log = np.empty((0,3))
-        else:
-            # Now just put the self.error log to none
-            self.error_log = None
-        self.error_filename = error_filename
-
+        self._eval_fn = theano.function([input],output)
+        self._val_fn = theano.function([input, target],[output, loss])
+        self._train_fn = theano.function([input, target],[output, loss], updates=updates)
 
 
         print("Initialized the network")
 
+    def evaluate_NN(self, batch):
+        """ 
+        INPUT:
+                batch: The batch to be evaluated by the NN, batch has shape=(batch_size, image_x, image_y)
 
-    def train_network(self,n_epoch = 20 , n_batches = 'all', n_validation_batches = 'all', param_save_file=None):
+        OUTPUT:
+                The output of the NN
+        """
+        if not(len(batch.shape) is 3):
+            raise Exception('The input batch does not have the correct shape.')
 
-        print("Start training! \n")
+        # evaluate the network
+        return self._eval_fn(batch)
 
-        # Start plot for errors
-        #plot.axis([0,n_epoch,0,1])
-        #plot.ion()
+    def validate_NN(self, batch):
+        """ 
+        INPUT:
+                batch: The batch used to train the network, batch has shape=(batch_size, 3, image_x, image_y)
 
-        if not isinstance(n_batches,int):
-            # Now just take all the batches
-            # get number of batches
-            n_batches = len(os.listdir('training'))
+        OUTPUT:
+                A list containing the output of the NN and the validation error        
+                i.e. [output, train_error]
+        """
+        # split the batch
+        batch_input, batch_target = self._split_batch(batch)
 
-        if not isinstance(n_validation_batches,int):
-            # Now just take all the batches
-            # get number of batches
-            n_validation_batches = len(os.listdir('validation'))
+        # Train the network
+        return self._val_fn(batch_input, batch_target)
 
-        for epoch in range(n_epoch):
-            # Set errors to zero for this epoch
-            train_error = 0
-            validation_error = 0
+    def train_NN(self, batch):
+        """ 
+        INPUT:
+                batch: The batch used to train the network, batch has shape=(batch_size, 3, image_x, image_y)
 
-            
+        OUTPUT:
+                A list containing the output of the NN and the train error        
+                i.e. [output, train_error]
+        """
+        # split the batch
+        batch_input, batch_target = self._split_batch(batch)
 
-            ######### Train the network #########
-            # Loop over the training batches
-            # Do this random so make a shuffled index list
-            batch_ids = np.arange(n_batches)
-            np.random.shuffle(batch_ids)
+        # Train the network
+        return self._train_fn(batch_input, batch_target)
 
-            # Keep track of time
-            start_time = time.time()
-            counter = 0 # Keep track of progress
-            for batch_id in batch_ids:
-                # Get the batch
-                batch_input, batch_target = self.get_batch(batch_id,folder='training')
-                # Blur the batch target:
-                batch_target = self.blur_batch_target(batch_target, sigma=2)
-                # Train the network
-                UV_out, loss = self.train_fn(batch_input, batch_target)
-                # update the error
-                train_error += loss
-                # Print (update) progress
-                print(" Progress: {:3.1f}%            \r".format(counter/(n_batches+ n_validation_batches)*100),end="")
-                counter += 1
+    def save_parameters(self, parameter_file):
+        """
+        INPUT:
+                parameter_file: the filelocation to store the (current) parameters of the NN
+                                i.e. 'parameters.npy' 
+        """
 
-            ######### Validate the network ##########
-            # Loop over the validating batches
-            for batch_id in range(n_validation_batches):
-                # Get the batch
-                batch_input, batch_target = self.get_batch(batch_id,folder='validation')
-                # Get the error
-                _, loss_val = self.val_fn(batch_input, batch_target)
-                validation_error += loss_val
-                # Print (update) progress
-                print(" Progress: {:3.1f}%            \r".format(counter/(n_batches + n_validation_batches)*100),end="")
-                counter += 1
+        np.save(parameter_file,lasagne.layers.get_all_param_values(self._network))
+        print("Stored the parameters to file: {}".format(parameter_file))
 
+    ########## Private functions ##########
+    def _split_batch(self, batch):
+        """ 
+        INPUT:
+            batch: batch to split into input and target
 
-            ######### Done now lets print! #########
-            # Store the errors in the error log
-            if not(self.error_log is None):
-                self.error_log = np.append(self.error_log, np.array([[epoch, train_error/(n_batches), validation_error/(n_validation_batches)]]), axis=0)
+        OUTPUT:
+                a list containing the batch_input and the batch_target: [batch_input, batch_target]
+        """
 
-            ## plot the errors:
-            #plot.cla()
-            #plot.plot(self.error_log[:,0],self.error_log[:,1], label='Train error')
-            #plot.plot(self.error_log[:,0],self.error_log[:,2], label='Validation error')
-            #plot.legend()
-            #plot.draw()
+        # target is the UV layers
+        batch_target = batch[:,[1,2],:,:]
+        batch_target = batch_target.reshape(batch_size,2,image_x,image_y)
+        # input is the Y layer
+        batch_input = batch[:,0,:,:]
+        batch_input = batch_input.reshape(batch_size,1,image_x,image_y)
 
+        return [batch_input, batch_target]
 
-            # print the results for this epoch:
-            print("---------------------------------------")
-            print("Epoch {} of {} took {:.3f}s".format(epoch + 1, n_epoch, time.time() - start_time))
-            print("Train error: {!s:}".format(train_error/n_batches))
-            print("Validation error: {!s:}".format(validation_error/n_validation_batches))
-
-            if not(param_save_file is None) and ((epoch % 5) == 0):
-                # Save parameters every 10 epochs
-                np.save(param_save_file[:-4] + str(epoch) + '.npy',lasagne.layers.get_all_param_values(self.network))
-                print("Stored the parameters to file: {}".format(param_save_file))
-        
-        # Store the final parameters!
-        if not(param_save_file is None):
-            # Save parameters
-            np.save(param_save_file,lasagne.layers.get_all_param_values(self.network))
-            print("Stored the final parameters to file: {}".format(param_save_file))
-
-        # Store the error values
-        if not(self.error_log is None):
-            # Save the errors
-            np.save(self.error_filename + '.npy',self.error_log)
-            print("Stored the error values to the file: {}".format(self.error_filename + '.npy'))
-
-        print("Done training the network")
-
-
-    def fruityfly(self,input_var=None,image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
-        """ This function defines the architecture of the Fruit colorizer network 
+    def _NN(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+        """ 
+        This function defines the architecture of the Fruit colorizer network 
    
-        Input:
-        input_var: a theano.tensor.tensor4 (and after theano function creation the data of size(batch_size, 1, image_size[1], image_size[2])
-        image_size: the size of the images, a 2D tuple 
-        filter_size: The convolutional filter size, a 2D tuple (EVEN FILTER SIZE IS NOT SUPPORTED!)
-        pool_size: the max_pool filter size between layers (also the upscale factor!)
+        INPUT:
+                input_var: a theano.tensor.tensor4 (and after theano function creation the data of size(batch_size, 1, image_size[1], image_size[2])
+                image_size: the size of the images, a 2D tuple 
+                filter_size: The convolutional filter size, a 2D tuple (EVEN FILTER SIZE IS NOT SUPPORTED!)
+                pool_size: the max_pool filter size between layers (also the upscale factor!)
+        OUTPUT:
+                Last lasagne layer of the network
         """
 
         # First make the input layer, batch size=none so any batch size will be accepted!
@@ -251,148 +209,4 @@ class Colorizer(object):
                                            nonlinearity=lasagne.nonlinearities.linear)
 
         return L_out
-
-
-    def get_batch(self,batch_number, folder='training'):
-        """This function opens a batch file and processes it for the NN"""
-        # generate the path to the batch file
-        # Since Joost does not know how to count, we need to obtain the nth filename:
-        filename = os.listdir(folder)[batch_number]
-        batch_file_path = os.path.join(folder, filename)
-    
-        #open batch file and create input and target
-        batch = np.load(batch_file_path)/np.float32(256)
-        # Get dimensions
-        (batch_size, _, image_x, image_y) = batch.shape
-        # target is the UV layers
-        batch_target = batch[:,[1,2],:,:]
-        batch_target = batch_target.reshape(batch_size,2,image_x,image_y)
-        # input is the Y layer
-        batch_input = batch[:,0,:,:]
-        batch_input = batch_input.reshape(batch_size,1,image_x,image_y)
-
-        return [batch_input, batch_target]
-
-    def blur_target(self,target, sigma=5):
-        """This function blurs the target of shape = (1,2,image_x,image_y)"""
-        img_shape = target.shape
-        target[0,:,:] = gaussian_filter(target[0,:,:],sigma).reshape(1,img_shape[1],img_shape[2])
-        target[1,:,:] = gaussian_filter(target[1,:,:],sigma).reshape(1,img_shape[1],img_shape[2])
-        return target
-
-    def blur_batch_target(self,batch_target,sigma=5):
-        """This function blurs the batch target"""
-
-        # Get the shape of the batch (batch_size, 2, image_x, image_y)
-        batch_shape = batch_target.shape
-
-        # Loop over the batch
-        for index in range(batch_shape[0]):
-            # Blur each target
-            batch_target[index,:,:,:] = self.blur_target(batch_target[index,:,:,:]).reshape(1,2,batch_shape[2],batch_shape[3])
-
-        return batch_target
-
-
-    def NNout2img(self,NN_input,NN_output):
-        """This function generates an image from the output of the NN (and combining it with the grayscale input)"""
-        # Convert it to show the image!
-        U_out = NN_output[0,0,:,:]*256
-        V_out = NN_output[0,1,:,:]*256
-        img_out = np.zeros((128,128,3), 'uint8')
-        img_out[..., 0] = NN_input*256
-        img_out[..., 1] = U_out
-        img_out[..., 2] = V_out
-        return Image.fromarray(img_out,'YCbCr')
-
-    def batch2img(self,batch_number,img_number,folder='training'):
-        # Get the image
-        batch_input, batch_target = self.get_batch(batch_number, folder)
-        (_, _, image_x, image_y) = batch_input.shape
-        # Convert to one image
-        img_input = batch_input[img_number,:,:,:].reshape(1,1,image_x,image_y)
-        img_target = batch_target[img_number,:,:,:].reshape(1,2,image_x,image_y)
-        # Get the original image:
-        ORG_img = self.NNout2img(img_input,img_target)
-        # Eval the NN
-        NN_output = self.eval_fn(img_input)
-        # Get NN image
-        NN_img = self.NNout2img(img_input,NN_output)
-
-        return [ORG_img, NN_img]
-     
-    def show_random_images(self,n_images, folder='validation'):
-        print("Getting random images from the folder: {}".format(folder))
-        # Create figure
-        f, ax = plot.subplots(n_images,2)
-        
-        # Get list of batches
-        batch_list = os.listdir(folder)
-        # Get batch size
-        batch_size, _, _, _, = np.load(os.path.join(folder,batch_list[0])).shape
-
-        # Generate an nx2 array of random numbers where the first row depicts the batch number
-        # and the second row the image number 
-        batch_ids = np.random.randint(0,len(batch_list),(n_images,1))
-        img_ids = np.random.randint(0,batch_size,(n_images,1))
-
-        # and loop over them
-        for index in range(n_images):
-            # Get the image
-            (ORG_img, NN_img) = self.batch2img(int(batch_ids[index]),int(img_ids[index]),folder=folder)
-            # Show original image
-            ax[index,0].axis('off')
-            ax[index,0].imshow(ORG_img)
-            # Show the NN image
-            ax[index,1].axis('off')
-            ax[index,1].imshow(NN_img)
-
-        # Show the figures
-        plot.show()
-
-    def show_random_images_with_UV_channels(self,n_images, folder='validation'):
-        print("Getting random images from the folder: {}".format(folder))
-        # Create figure
-        f, ax = plot.subplots(n_images*2,3)
-        
-        # Get list of batches
-        batch_list = os.listdir(folder)
-        # Get batch size
-        batch_size, _, _, _, = np.load(os.path.join(folder,batch_list[0])).shape
-
-        # Generate an nx2 array of random numbers where the first row depicts the batch number
-        # and the second row the image number 
-        batch_ids = np.random.randint(0,len(batch_list),(n_images,1))
-        img_ids = np.random.randint(0,batch_size,(n_images,1))
-
-        # and loop over them
-        for index in range(0,n_images*2,2):
-            # Get the image
-            (ORG_img, NN_img) = self.batch2img(int(batch_ids[int(index/2)]),int(img_ids[int(index/2)]),folder=folder)
-            # Get the U and V layers
-            _, ORG_U, ORG_V = ORG_img.split()
-            _, NN_U, NN_V = NN_img.split()
-
-            # Show original image
-            ax[index,0].axis('off')
-            ax[index,0].imshow(ORG_img)
-            # show the U layer
-            ax[index,1].axis('off')
-            ax[index,1].imshow(ORG_U,cmap='gray')
-            # Show the V layer
-            ax[index,2].axis('off')
-            ax[index,2].imshow(ORG_V,cmap='gray')
-
-            # Show the NN image
-            ax[index+1,0].axis('off')
-            ax[index+1,0].imshow(NN_img)
-            # show the U layer
-            ax[index+1,1].axis('off')
-            ax[index+1,1].imshow(NN_U,cmap='gray')
-            # Show the V layer
-            ax[index+1,2].axis('off')
-            ax[index+1,2].imshow(NN_V,cmap='gray')
-
-        # Show the figures
-        plot.show()
 

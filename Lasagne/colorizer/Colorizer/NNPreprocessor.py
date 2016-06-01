@@ -9,6 +9,7 @@ from time import time
 
 class NNPreprocessor(object):
     """This class preprocesses the batches previously generated"""    
+
     def __init__(self, batch_size, folder, random_superbatches=True, blur=False, randomize=True, workers=16):
 
         """ INPUT:
@@ -168,10 +169,10 @@ def _process_batch(batch, blur):
     return batch
 
 
-if __name__ == "__main__":
-    nnp = NNPreprocessor(5, "testing_files", blur=True)
+#if __name__ == "__main__":
+#    nnp = NNPreprocessor(5, "testing_files", blur=True)
 
-    print(nnp.get_batch().shape)
-    # Test processing of a single batch
-    # testbatch = np.load(os.path.join("testing_files", "testbatch.npy"))
-    # nnp._process_batch(testbatch)
+#    print(nnp.get_batch().shape)
+#    # Test processing of a single batch
+#    # testbatch = np.load(os.path.join("testing_files", "testbatch.npy"))
+#    # nnp._process_batch(testbatch)

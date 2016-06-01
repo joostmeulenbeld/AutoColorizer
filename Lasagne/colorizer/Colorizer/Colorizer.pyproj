@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>8f1924a8-4015-4d5a-bc3e-a26a184595ce</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>NNPreprocessor.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -23,11 +23,17 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Colorizer.py" />
+    <Compile Include="Colorizer.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="Colorizer_old.py" />
     <Compile Include="main.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="NNPreprocessor.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="NNVisualizer.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="show_images.py">
