@@ -6,14 +6,13 @@ from PIL import Image
 from scipy.ndimage.filters import gaussian_filter
 
 import matplotlib.pyplot as plot
-
 import sys
 import os
 from glob import glob
 import time
-import logging
 
-class colorizer(object):
+
+class Colorizer(object):
 
     def __init__(self, param_file=None, error_filename=None):
 
@@ -96,20 +95,22 @@ class colorizer(object):
             train_error = 0
             validation_error = 0
 
-            # Keep track of time
-            start_time = time.time()
+            
 
             ######### Train the network #########
             # Loop over the training batches
             # Do this random so make a shuffled index list
             batch_ids = np.arange(n_batches)
             np.random.shuffle(batch_ids)
-            counter = 0
+
+            # Keep track of time
+            start_time = time.time()
+            counter = 0 # Keep track of progress
             for batch_id in batch_ids:
                 # Get the batch
                 batch_input, batch_target = self.get_batch(batch_id,folder='training')
                 # Blur the batch target:
-                batch_target = self.blur_batch_target(batch_target)
+                batch_target = self.blur_batch_target(batch_target, sigma=2)
                 # Train the network
                 UV_out, loss = self.train_fn(batch_input, batch_target)
                 # update the error
@@ -338,7 +339,7 @@ class colorizer(object):
         # and loop over them
         for index in range(n_images):
             # Get the image
-            (ORG_img, NN_img) = self.batch2img(batch_ids[index],img_ids[index],folder=folder)
+            (ORG_img, NN_img) = self.batch2img(int(batch_ids[index]),int(img_ids[index]),folder=folder)
             # Show original image
             ax[index,0].axis('off')
             ax[index,0].imshow(ORG_img)
@@ -367,7 +368,7 @@ class colorizer(object):
         # and loop over them
         for index in range(0,n_images*2,2):
             # Get the image
-            (ORG_img, NN_img) = self.batch2img(batch_ids[index/2],img_ids[index/2],folder=folder)
+            (ORG_img, NN_img) = self.batch2img(int(batch_ids[int(index/2)]),int(img_ids[int(index/2)]),folder=folder)
             # Get the U and V layers
             _, ORG_U, ORG_V = ORG_img.split()
             _, NN_U, NN_V = NN_img.split()
