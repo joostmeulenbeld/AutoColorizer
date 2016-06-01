@@ -4,6 +4,7 @@ from skimage import color
 from scipy.ndimage.filters import gaussian_filter
 from multiprocessing import Pool
 from queue import Queue
+from time import time
 
 
 class NNPreprocessor(object):
@@ -51,7 +52,7 @@ class NNPreprocessor(object):
             self._process_next_superbatch()
 
         # return next item in array (pop)
-        return batch_queue.get()
+        return self._batch_queue.get()
 
 
     def get_image(self, superbatch_id, image_id, blur=False):
@@ -110,7 +111,7 @@ class NNPreprocessor(object):
         superbatch = np.load(os.path.join(self._folder,filename))
 
         # process next superbatch
-        self._process_next_superbatch(superbatch)
+        self._process_superbatch(superbatch)
 
 
     def _process_superbatch(self, superbatch):
@@ -130,42 +131,46 @@ class NNPreprocessor(object):
         # split superbatch
         # create a list of numpy arrays of shape=(batch_size, 3, image_x, image_y)
         pool_list = [superbatch[index:index+self._batch_size, :, :, :] for index in range(0, superbatch_size, self._batch_size)]
-
+        print(pool_list[0].shape)
         # Pool: process batches
-        self._p.map(self._process_batch, pool_list)
+        processed_batches = self._p.starmap(_process_batch, [(batch, self._blur) for batch in pool_list])
+        print(time() - t)
+        for batch in processed_batches:
+            self._batch_queue.put(batch)
+        
 
-    def _process_batch(self, batch):
-        """ INPUT:
-                    batch: numpy array containing the batch to be processed
+def _process_batch(batch, blur):
+    """ INPUT:
+                batch: numpy array containing the batch to be processed
 
-            OUTPUT
-                    processed batch (gets settings as provided by the constructor)
-        """
+        OUTPUT
+                processed batch (gets settings as provided by the constructor)
+    """
 
-        # Get the shape of the batch (batch_size, 2, image_x, image_y)
-        batch_shape = batch.shape
-        # Define gaussian blur standard deviation
-        sigma = 3
+    # Get the shape of the batch (batch_size, 2, image_x, image_y)
+    batch_shape = batch.shape
+    # Define gaussian blur standard deviation
+    sigma = 3
 
-        # Loop over the batch
-        for index in range(batch_shape[0]):
-            # Get an image from the batch and change axis directions to match normal specification (x, y, n_channels)
-            image = np.transpose(batch[index,:,:,:], [1,2,0])
-            image = color.rgb2lab(image)
+    # Loop over the batch
+    for index in range(batch_shape[0]):
+        # Get an image from the batch and change axis directions to match normal specification (x, y, n_channels)
+        image = np.transpose(batch[index,:,:,:], [1,2,0])
 
-            if self.blur:
-                image[:,:,1] = gaussian_filter(image[:,:,1], sigma)
-                image[:,:,2] = gaussian_filter(image[:,:,2], sigma)
+        if True:
+            image[:,:,1] = gaussian_filter(image[:,:,1], sigma)
+            image[:,:,2] = gaussian_filter(image[:,:,2], sigma)
 
-            # Transpose back to format required for the neural network and save it in the original batch
-            batch[index,:,:,:] = np.transpose(image, [2,0,1])
+        # Transpose back to format required for the neural network and save it in the original batch
+        batch[index,:,:,:] = np.transpose(image, [2,0,1])
 
-        return batch
+    return batch
 
 
 if __name__ == "__main__":
     nnp = NNPreprocessor(5, "testing_files", blur=True)
 
+    print(nnp.get_batch().shape)
     # Test processing of a single batch
     # testbatch = np.load(os.path.join("testing_files", "testbatch.npy"))
     # nnp._process_batch(testbatch)
