@@ -12,7 +12,7 @@ def get_n_images():
 
     return n_images
 
-NNcolorizer = colorizer(param_file='params_20_05_16_20_new_net_batches_100_epoch_20_morning_final.npy')
+NNcolorizer = colorizer(param_file='params_landscape.npy')
 
 # Obtain settings from user
 n_images = get_n_images()
