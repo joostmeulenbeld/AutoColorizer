@@ -293,7 +293,8 @@ class DBWrapper:
 
 
 if __name__ == "__main__":
-    wrapper = DBWrapper(dbname='flower.db', images_folder='flower_jpg')
+    wrapper = DBWrapper(dbname='landscape.db', images_folder='landscape_jpg')
+    wrapper.create_training_sets(imagesize=128, batch_size=1000, fractions=(1.0,), foldernames=('training',), prefix="landscape")
 
     # wrapper.clean_database()
     # Check integrity of the database:
@@ -306,7 +307,6 @@ if __name__ == "__main__":
     #wrapper.set_good(ids, good=1)
     #print('set_good done')
 
-    wrapper.create_training_sets(imagesize=128, batch_size=1000, fractions=(1.0,), foldernames=('training',), prefix="flower")
 
     #Update certain parts, idlist contains a list of ID's [ID1, ID2 etc]
     #wrapper.set_checked(idlist, checked=1)
