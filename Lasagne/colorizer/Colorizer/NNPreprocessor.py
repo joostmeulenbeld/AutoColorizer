@@ -8,7 +8,7 @@ from time import time
 
 
 class NNPreprocessor(object):
-    """This class preprocesses the batches previously generated"""    
+    """This class preprocesses the batches previously generated"""
     def __init__(self, batch_size, folder, random_superbatches=True, blur=False, randomize=True, workers=16):
 
         """ INPUT:
@@ -32,15 +32,15 @@ class NNPreprocessor(object):
         # Create queue for the superbatches
         self._superbatch_queue = Queue()
 
-        # self.filenames 
-        try: 
+        # self.filenames
+        try:
             self._filenames = os.listdir(folder)
         except:
             print("Folder does not exist")
-        
+
         # Create pool for processing images in superbatch
         self._p = Pool(workers)
-                 
+
 
 
     def  get_batch(self):
@@ -104,7 +104,7 @@ class NNPreprocessor(object):
 
             # Add to queue
             [self._superbatch_queue.put(filename) for filename in self._filenames]
-            
+
 
         # load superbatch numpy array by taking superbatch_queue.get()
         filename = self._superbatch_queue.get()
@@ -138,7 +138,7 @@ class NNPreprocessor(object):
         print(time() - t)
         for batch in processed_batches:
             self._batch_queue.put(batch)
-        
+
 
 def _process_batch(batch, blur):
     """ INPUT:
@@ -158,7 +158,9 @@ def _process_batch(batch, blur):
         # Get an image from the batch and change axis directions to match normal specification (x, y, n_channels)
         image = np.transpose(batch[index,:,:,:], [1,2,0])
 
-        if True:
+        image = color.rgb2lab(image)
+
+        if blur:
             image[:,:,1] = gaussian_filter(image[:,:,1], sigma)
             image[:,:,2] = gaussian_filter(image[:,:,2], sigma)
 
