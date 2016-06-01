@@ -5,6 +5,7 @@ from scipy.ndimage.filters import gaussian_filter
 from multiprocessing import Pool
 from queue import Queue
 from time import time
+import random
 
 
 class NNPreprocessor(object):
@@ -62,15 +63,28 @@ class NNPreprocessor(object):
                     blur: Blur the target output of the image if True (only performed on the CIELab colorspace output)
             OUTPUT:
                     a image in two colorspaces (CIELab and RGB) of shape=(2, 3, image_x, image_y)
-                    where the first axis is: CIELab for 0 and RGB for 1
+                    where the first axis is: CIELab for 0 and RGB for 1. RGB has values 0-255
         """
+        superbatchlist = sorted(os.listdir(self._folder))
+        assert superbatch_id < len(superbatchlist) and superbatch_id >= 0, \
+            print("Requested superbatch {}, but only {} superbatches present in folder {}".format(superbatch_id, len(superbatchlist), self._folder))
 
-        # Get list of superbatch_filenames
-        # Select the required one (error if does not exist)
+        # Get list of superbatch_filenames and get the required one
+        superbatch = np.load(os.path.join(self._folder, sorted(os.listdir(self._folder))[superbatch_id]), mmap_mode='r')
 
-        # Open correct image (error if out of bounds)
+        assert image_id < superbatch.shape[0] and image_id >= 0, \
+            print("Requested image {}, but only {} images present in the requrested batch".format(image_id, len(superbatch.shape[0]), self._folder))
 
-        pass
+        image_rgb = np.transpose(superbatch[image_id,:,:,:], [1,2,0]) / 256
+
+        image_lab = color.rgb2lab(image_rgb)
+
+        if blur:
+            image_lab[:,:,1] = gaussian_filter(image_lab[:,:,1], sigma)
+            image_lab[:,:,2] = gaussian_filter(image_lab[:,:,2], sigma)
+
+        # Transpose back to format required for the neural network and save it in the original batch
+        return np.stack([np.transpose(image_lab, [2,0,1]), np.transpose(image_rgb, [2,0,1])], axis=0)
 
     def get_random_image(self, blur=False):
         """ INPUT:
@@ -79,15 +93,17 @@ class NNPreprocessor(object):
                     a randomly selected image in two colorspaces (CIELab and RGB) of shape=(2, 3, image_x, image_y)
                     where the first axis is: CIELab for 0 and RGB for 1
         """
+        # get sorted list of superbatches
+        superbatchlist = sorted(os.listdir(self._folder))
+        # pick a random superbatch
+        superbatchnr = random.randint(0, len(superbatchlist)-1)
+        # load the random superbatch with mmap_mode='r' such that it doesn't actually load it to memory
+        superbatch = np.load(os.path.join(self._folder, superbatchlist[superbatchnr]), mmap_mode='r')
+        # pick a random image from the superbatch
+        imagenr = random.randint(0, superbatch.shape[0]-1)
+        #return the image using the found indices
+        return self.get_image(superbatchnr, imagenr, blur)
 
-        # Get list of superbatch_filenames
-        # Get superbatch size
-
-        # Generate random combination
-
-        # get image
-
-        pass
 
 
     ########## Private functions ##########
@@ -108,7 +124,7 @@ class NNPreprocessor(object):
 
         # load superbatch numpy array by taking superbatch_queue.get()
         filename = self._superbatch_queue.get()
-        superbatch = np.load(os.path.join(self._folder,filename))
+        superbatch = np.load(os.path.join(self._folder,filename))/256
 
         # process next superbatch
         self._process_superbatch(superbatch)
@@ -131,11 +147,8 @@ class NNPreprocessor(object):
         # split superbatch
         # create a list of numpy arrays of shape=(batch_size, 3, image_x, image_y)
         pool_list = [superbatch[index:index+self._batch_size, :, :, :] for index in range(0, superbatch_size, self._batch_size)]
-        print(pool_list[0].shape)
         # Pool: process batches
-        t = time()
         processed_batches = self._p.starmap(_process_batch, [(batch, self._blur) for batch in pool_list])
-        print(time() - t)
         for batch in processed_batches:
             self._batch_queue.put(batch)
 
@@ -174,6 +187,7 @@ if __name__ == "__main__":
     nnp = NNPreprocessor(5, "testing_files", blur=True)
 
     print(nnp.get_batch().shape)
+    # print(nnp.get_random_image().shape)
     # Test processing of a single batch
     # testbatch = np.load(os.path.join("testing_files", "testbatch.npy"))
     # nnp._process_batch(testbatch)
