@@ -31,6 +31,9 @@ class NNPreprocessor(object):
         self._blur = blur
         self._randomize = randomize
         self._workers = workers
+        self._epoch = -1
+        self._epoch_done = False
+        
 
         # Create queue for the batches
         self._batch_queue = Queue()
@@ -44,10 +47,48 @@ class NNPreprocessor(object):
         except:
             print("Folder does not exist")
 
+        self._n_superbatches = len(self._filenames)
+        self._superbatch_shape = np.load(os.path.join(self._folder, self._filenames[0]) , mmap_mode='r').shape
 
+    @property
+    def get_epoch(self):
+        """
+        OUTPUT:
+                number of epochs 
+        """
 
+        return self._epoch
 
+    @property
+    def get_epochProgress(self):
+        """
+        OUTPUT:
+                percentage of progress in epoch
+        """
 
+        return ( 1 - self._superbatch_queue.qsize() / self._n_superbatches) * 100.
+
+    @property
+    def get_n_batches(self):
+        """
+        OUTPUT:
+                number of batches used in one epoch
+        """
+
+        return np.floor(self._n_superbatches * self._superbatch_shape[0] / self._batch_size)
+
+    @property
+    def get_epoch_done(self):
+        """
+        OUTPUT:
+                bool, true if looped over all data, after this function has been called the bool is set to false!
+        """
+        done = self._epoch_done
+        self._epoch_done = False
+
+        return done
+
+    @property
     def  get_batch(self):
         """
         OUTPUT:
@@ -57,11 +98,20 @@ class NNPreprocessor(object):
         if self._batch_queue.empty():
             self._process_next_superbatch()
 
-        # return next item in array (pop)
-        return self._batch_queue.get()
+        batch =  self._batch_queue.get()
+
+        # Check if this was the last batch of the last superbatch
+        if self._batch_queue.empty() and self._superbatch_queue.empty():
+            # done with the epoch!
+            self._epoch_done = True
+        else: 
+            self._epoch_done = False
+
+        # return next item in array
+        return batch
 
 
-    def get_image(self, superbatch_id, image_id, blur=False):
+    def get_image(self, superbatch_id, image_id, blur=False, sigma=3):
         """ 
         INPUT:
                 superbatch_id: the filenumber of the superbatch in the folder
@@ -130,7 +180,7 @@ class NNPreprocessor(object):
         # a max ~ 100, a min ~ -65
         # b max ~ 95, b min ~ -105
         image[:,:,0] /= 100
-        image[:,:,1] = (image[:,:,1] + 65) / 165
+        image[:,:,1] = (image[:,:,1] + 100) / 200
         image[:,:,2] = (image[:,:,2] + 105) / 200
 
         return image
@@ -150,6 +200,9 @@ class NNPreprocessor(object):
 
             # Add to queue
             [self._superbatch_queue.put(filename) for filename in self._filenames]
+
+            # add 1 to epoch counter
+            self._epoch += 1
 
 
         # load superbatch numpy array by taking superbatch_queue.get()
@@ -179,6 +232,10 @@ class NNPreprocessor(object):
         # create a list of numpy arrays of shape=(batch_size, 3, image_x, image_y)
         pool_list = [superbatch[index:index+self._batch_size, :, :, :] for index in range(0, superbatch_size, self._batch_size)]
         
+        # Check if the last batch still has the same size, otherways delete it from the list!
+        if not(pool_list[-1].shape is pool_list[0].shape):
+            del pool_list[-1]
+
         ## Pool: process batches
         ## Create pool for processing images in superbatch
         #p = Pool(self._workers)

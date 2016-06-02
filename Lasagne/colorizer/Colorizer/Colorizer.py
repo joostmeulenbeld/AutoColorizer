@@ -82,7 +82,7 @@ class Colorizer(object):
 
         OUTPUT:
                 A list containing the output of the NN and the validation error        
-                i.e. [output, train_error]
+                i.e. [output, validation_error]
         """
         # split the batch
         batch_input, batch_target = self._split_batch(batch)
