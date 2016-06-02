@@ -1,4 +1,4 @@
-
+﻿
 def CIELab_array2img(CIELab):
     """ INPUT:
                 CIELab: Lab layers in an array of shape=(3,image_x, image_y)
@@ -6,12 +6,7 @@ def CIELab_array2img(CIELab):
                 Image
     """
     # Convert it to show the image!
-    U_out = NN_output[0,0,:,:]*256
-    V_out = NN_output[0,1,:,:]*256
-    img_out = np.zeros((128,128,3), 'uint8')
-    img_out[..., 0] = NN_input*256
-    img_out[..., 1] = U_out
-    img_out[..., 2] = V_out
+    
     return Image.fromarray(img_out,'YCbCr')
 
 def split_batch(batch):
@@ -45,13 +40,9 @@ def batch2img(batch, colorspace):
     # Loop over the batch
     for img_number in range(n_images):
 
-
         # Get the original image:
-        ORG_img = self.NNout2img(img_input,img_target)
-        # Eval the NN
-        NN_output = self.eval_fn(img_input)
-        # Get NN image
-        NN_img = self.NNout2img(img_input,NN_output)
+        img = self.NNout2img(img_input,img_target)
+
 
     return [ORG_img, NN_img]
 

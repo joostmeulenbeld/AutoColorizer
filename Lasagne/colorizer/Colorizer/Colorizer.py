@@ -20,18 +20,21 @@ class Colorizer(object):
         target = T.tensor4('target') # shape=(batch_size,2,image_x,image_y)
 
         # Create the neural network
+        print("---Create the neural network")
         self._network = self._NN(input)
 
         # Set params if given
         if not(param_file is None):
             param_load = np.load(param_file)
             lasagne.layers.set_all_param_values(self._network, param_load)
-            print("Loaded param file: {}".format(param_file))
+            print("---Loaded param file: {}".format(param_file))
 
         # Get the output of the network
+        print("---Get the output of the network")
         output = lasagne.layers.get_output(self._network)
 
         # Get the sum squared error per image
+        print("---Define loss function")
         loss = lasagne.objectives.squared_error(output,target) # shape = (batch_size, 2, image_x, image_y)
         loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
         # And take the mean over the batch
@@ -40,12 +43,17 @@ class Colorizer(object):
         # Create update expressions for training, i.e., how to modify the
         # parameters at each training step. Here, we'll use Stochastic Gradient
         # Descent (SGD) with adadelta and nesterov momentum.
+        print("---Get all trainable parameters")
         params = lasagne.layers.get_all_params(self._network, trainable=True)
+        print("--- --- # of parameters: {} ".format(lasagne.layers.count_params(self._network)))
+        print("--- --- # of trainable parameters: {} ".format(lasagne.layers.count_params(self._network, trainable=True)))
+        print("---Define update function")
         updates = lasagne.updates.adadelta(loss, params, learning_rate=1, rho=0.9, epsilon=1e-06)
         # Add nesterov momentum
         updates = lasagne.updates.apply_nesterov_momentum(updates,params,momentum=0.9)
 
         # Create theano functions to be used in the functions
+        print("---Create the theano functions")
         self._eval_fn = theano.function([input],output)
         self._val_fn = theano.function([input, target],[output, loss])
         self._train_fn = theano.function([input, target],[output, loss], updates=updates)
