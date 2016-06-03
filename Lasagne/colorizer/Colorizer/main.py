@@ -8,24 +8,24 @@ import os
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 0
+n_epoch = 45
 
 # Folder where the training superbatches are stored
-training_folder='test_training'
+training_folder='fruit_training'
 # Folder where the validation superbatches are stored
-validation_folder='test_validation'
+validation_folder='fruit_validation'
 
 # Parameter folder where the parameter files are stored
-param_folder = 'params_fruit'
+param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
-param_file = 'param_test'
+param_file = None
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'param_test'
+param_save_file = 'param_fruit'
 
 # error folder where the error files are stored
 error_folder = 'errors'
-# Error file to append with the new training and validation errors (do not add .npy), None for no file
-error_file = 'error_test'
+# Error file to append with the new training and validation errors (do not add .npy), None dont save
+error_file = 'error_fruit'
 
 
 ######################
@@ -76,7 +76,11 @@ train_data = NNPreprocessor(batch_size=10, folder=training_folder, random_superb
 validation_data = NNPreprocessor(batch_size=10, folder=validation_folder, random_superbatches=False, blur=False, randomize=False)
 
 # Create network object
-NNColorizer = Colorizer(param_file=os.path.join(param_folder,param_file + ".npy"))
+if not(param_file is None):
+    param_file_loc=os.path.join(param_folder,param_file + ".npy")
+else:
+    param_file_loc=None
+NNColorizer = Colorizer(param_file=param_file_loc)
 
 # keep track of time
 start_time_training = time()
