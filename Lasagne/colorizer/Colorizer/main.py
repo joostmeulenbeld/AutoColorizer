@@ -8,24 +8,27 @@ import os
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 45
+n_epoch = 1
 
 # Folder where the training superbatches are stored
 training_folder='fruit_training'
 # Folder where the validation superbatches are stored
 validation_folder='fruit_validation'
 
+# The colorspace to run the NN in
+colorspace='HSV'
+
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
 param_file = None
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'param_fruit'
+param_save_file = 'param_fruit_HSV'
 
 # error folder where the error files are stored
 error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'error_fruit'
+error_file = 'error_fruit_HSV'
 
 
 ######################
@@ -45,12 +48,12 @@ def print_progress(string, elapsed_time, progress):
     remaining_time['hour'] = np.floor(remaining_time['total_seconds'] / 3600).astype('int')
     remaining_time['minutes'] = np.floor( (remaining_time['total_seconds'] - 3600*remaining_time['hour']) / 60).astype('int')
     remaining_time['seconds'] = np.floor( (remaining_time['total_seconds'] - 3600*remaining_time['hour'] - 60*remaining_time['minutes'])).astype('int')
-    print("{}: {:3.1f}% |{}| Remaining time: {:0>2}:{:0>2}:{:0>2}                                \r".format( string,
-                                                                                    progress,
-                                                                                    "#"*n_bars + " "*(20 - n_bars),
-                                                                                    remaining_time['hour'],
-                                                                                    remaining_time['minutes'],
-                                                                                    remaining_time['seconds']),end="")
+    print("{}: {:3.1f}% |{}| Remaining time: {:0>2}:{:0>2}:{:0>2}                                \r".format(    string,
+                                                                                                                progress,
+                                                                                                                "#"*n_bars + " "*(20 - n_bars),
+                                                                                                                remaining_time['hour'],
+                                                                                                                remaining_time['minutes'],
+                                                                                                                remaining_time['seconds']),end="")
 
 def get_n_images():
     """
@@ -72,15 +75,15 @@ def get_n_images():
 ##### Main #####
 
 # Load data
-train_data = NNPreprocessor(batch_size=10, folder=training_folder, random_superbatches=True, blur=False, randomize=True)
-validation_data = NNPreprocessor(batch_size=10, folder=validation_folder, random_superbatches=False, blur=False, randomize=False)
+train_data = NNPreprocessor(batch_size=10, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True)
+validation_data = NNPreprocessor(batch_size=10, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False)
 
 # Create network object
 if not(param_file is None):
     param_file_loc=os.path.join(param_folder,param_file + ".npy")
 else:
     param_file_loc=None
-NNColorizer = Colorizer(param_file=param_file_loc)
+NNColorizer = Colorizer(colorspace=colorspace,param_file=param_file_loc)
 
 # keep track of time
 start_time_training = time()
@@ -154,9 +157,13 @@ while n_epoch > 0:
 
         # print the results for this epoch:
         print("Epoch {} of {} took {:.3f}s".format(last_epoch, n_epoch, time() - start_time_training))
-        print("The last train error is: {!s:}".format(train_error / train_data.get_n_batches ))
-        print("Validation error: {!s:}".format(validation_error / validation_data.get_n_batches ))
+        print("The average train error is: {!s:}".format(train_error / train_data.get_n_batches ))
+        print("The average validation error: {!s:}".format(validation_error / validation_data.get_n_batches ))
         print("---------------------------------------")
+
+        # Reset train error
+        train_error = 0
+
         # reset time 
         start_time_training = time()
         
@@ -177,15 +184,19 @@ while True:
 
     try:
         # get random images from the validation set
-        images = validation_data.get_random_images(3)
+        images = validation_data.get_random_images(n_images)
 
         # Run through the NN (validate to keep shape the same)
         NN_images, _ = NNColorizer.validate_NN(images)
         # Append with L layer
-        NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
+        if (colorspace == 'CIEL*a*b*'):
+            NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
+        elif (colorspace == 'HSV'):
+            NN_images = np.append(NN_images,images[:,2,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),axis=1)
 
         ## Show them :)
-        NNshow.show_images_with_ab_channels(images,NN_images)
+        NNshow.show_images_with_ab_channels(images,NN_images,colorspace)
+
     except:
         print("Something went wrong...")
     

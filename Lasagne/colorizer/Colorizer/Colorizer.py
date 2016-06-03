@@ -2,19 +2,30 @@
 import theano
 import theano.tensor as T
 import lasagne
+from NNPreprocessor import assert_colorspace
 
 class Colorizer(object):
     """This class defines the neural network and functions to colorize images"""
 
-    def __init__(self, param_file=None):
+    def __init__(self, colorspace, param_file=None):
         """ 
         INPUT:
+                colorspace: the colorspace that the NN will use;
+                        'CIELab' for CIELab colorspace
+                        'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
+                        'RGB' for rgb mapped between [0 and 1]
+                        'YUV' for YUV (NOT FUNCTIONAL YET)
+                        'HSV' for HSV
                 param_file: the location of the file where all the trained parameters of the network are stored
                             i.e.: 'parameters.npy' or None for random initialization
         """
 
         # Create the network here and all the theano functions
         print("Initializing the network")
+
+        # Check if colorspace is properly defined
+        assert_colorspace(colorspace)
+        self._colorspace = colorspace
 
         input = T.tensor4('input')
         target = T.tensor4('target') # shape=(batch_size,2,image_x,image_y)
@@ -35,10 +46,36 @@ class Colorizer(object):
 
         # Get the sum squared error per image
         print("---Define loss function")
-        loss = lasagne.objectives.squared_error(output,target) # shape = (batch_size, 2, image_x, image_y)
-        loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
-        # And take the mean over the batch
-        loss = loss.mean()
+        if (self._colorspace == 'CIEL*a*b*'):
+            loss_output = T.sgn(output-0.5)*( 2**(abs(output-0.5)) - 1 )
+            loss_target = T.sgn(target-0.5)*( 2**(abs(target-0.5)) - 1 )
+            loss = lasagne.objectives.squared_error(loss_output, loss_target) # shape = (batch_size, 2, image_x, image_y)
+            loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
+            # And take the mean over the batch
+            loss = loss.mean()
+        elif (self._colorspace == 'HSV'):
+            # Only on the first layer, the H layer compute the distance.
+            # The coordinates are circular so 0 == 1 
+            Hx = output[:,0,:,:]
+            Hy = target[:,0,:,:]
+
+            # The minimum distance on a circle can be one of three things:
+            # First if both points closest to eachother rotating from 0/1 CCW on a unit circle
+            # Second if point Hx is closer to 0/1 CCW, and point Hy CW
+            # Third if point Hy is closer to 0/1 CCW, and point Hx CW
+            Hdist = ( T.minimum( abs(Hx - Hy), 1 - T.maximum(Hx,Hy) + T.minimum(Hx,Hy)) )**2
+
+            # On the saturation layer penalize large saturation error! 
+            # the 2 can be changes if not saturated enough
+            Sx = output[:,1,:,:]
+            Sy = target[:,1,:,:]
+            Sdist = ( 2**(Sx) -  2**(Sy) )**2
+
+            # summaraze to define the loss
+            loss = T.sum(Sdist) + T.sum(Hdist)
+
+        else:
+            raise ValueError("Cannot handle this colorspace, can only process 'CIEL*a*b*' and 'HSV'")
 
         # Create update expressions for training, i.e., how to modify the
         # parameters at each training step. Here, we'll use Stochastic Gradient
@@ -119,18 +156,29 @@ class Colorizer(object):
     def _split_batch(self, batch):
         """ 
         INPUT:
-            batch: batch to split into input and target
+                batch: batch to split into input and target
 
         OUTPUT:
                 a list containing the batch_input and the batch_target: [batch_input, batch_target]
         """
         (batch_size,_,image_x,image_y) = batch.shape
 
-        # target is the UV layers
-        batch_target = batch[:,[1,2],:,:]
+        if (self._colorspace == 'CIEL*a*b*'):
+            # target is the a*b* layers
+            batch_target = batch[:,[1,2],:,:]
+        elif (self._colorspace == 'HSV'):
+            # target is the HS layers
+            batch_target = batch[:,[0,1],:,:]
+
         batch_target = batch_target.reshape(batch_size,2,image_x,image_y)
-        # input is the Y layer
-        batch_input = batch[:,0,:,:]
+
+        if (self._colorspace == 'CIEL*a*b*'):
+            # input is the L* layer
+            batch_input = batch[:,0,:,:]
+        elif (self._colorspace == 'HSV'):
+            # input is the V layer
+            batch_input = batch[:,2,:,:]
+
         batch_input = batch_input.reshape(batch_size,1,image_x,image_y)
 
         return [batch_input, batch_target]

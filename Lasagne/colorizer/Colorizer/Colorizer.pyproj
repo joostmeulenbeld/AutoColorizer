@@ -39,6 +39,9 @@
     <Compile Include="show_images.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="theanoTest.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="train_network.py">
       <SubType>Code</SubType>
     </Compile>

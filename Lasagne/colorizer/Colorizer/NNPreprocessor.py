@@ -15,12 +15,18 @@ from PIL import Image
 class NNPreprocessor(object):
     """This class preprocesses the batches previously generated"""    
 
-    def __init__(self, batch_size, folder, random_superbatches=True, blur=False, randomize=True, workers=4, sigma=3):
+    def __init__(self, batch_size, folder, colorspace, random_superbatches=True, blur=False, randomize=True, workers=4, sigma=3):
 
         """ 
         INPUT:
                 batch_size: amount of images returned by get batch, (needed for preloading)
                 folder: the folder where the batches are stored (as .npy files)
+                colorspace: the colorspace that the images will be put in;
+                        'CIELab' for CIELab colorspace
+                        'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
+                        'RGB' for rgb mapped between [0 and 1]
+                        'YUV' for YUV (NOT FUNCTIONAL YET)
+                        'HSV' for HSV
                 random_superbatches: Open the superbatch files in a random order if True
                 blur: Blur the target output of every batch (obtained by get_batch) if True, (needed for preloading)
                 randomize: randomize the image order inside the superbatch if True, (needed for preloading)
@@ -30,6 +36,7 @@ class NNPreprocessor(object):
 
         self._batch_size = batch_size
         self._folder = folder
+        self._colorspace = colorspace
         self._random_superbatches = random_superbatches
         self._blur = blur
         self._randomize = randomize
@@ -135,16 +142,15 @@ class NNPreprocessor(object):
                 superbatch_id: the filenumber of the superbatch in the folder
                 image_id: The image number in the superbatch
                 blur: Blur the target output of the image if True (only performed on the CIELab or CIEL*a*b* colorspace output)
-                colorspace: the colorspace that the image will be put in;
+                colorspace: the colorspace that the images will be put in;
                         'CIELab' for CIELab colorspace
                         'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
                         'RGB' for rgb mapped between [0 and 1]
+                        'YUV' for YUV (NOT FUNCTIONAL YET)
+                        'HSV' for HSV
         OUTPUT:
                 An image in the specified colorspace of shape=(1, 3,image_x,image_y)
         """
-        # Check if colorspace is properly defined
-        assert ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') or (colorspace == 'RGB') ), \
-        "the colorspace must be 'CIELab' or 'CIEL*a*b*' or 'RGB'"
 
         # Get list of superbatch_filenames
         superbatchlist = sorted(os.listdir(self._folder))
@@ -161,17 +167,8 @@ class NNPreprocessor(object):
         # Extract image and rearange to shape=(image_x,image_y,3)
         image = np.transpose(superbatch[image_id,:,:,:], [1,2,0]) / 255.
 
-        # Convert to CIELab
-        if ( (colorspace is 'CIELab') or (colorspace is 'CIEL*a*b*') ):
-            image = color.rgb2lab(image)
-
-            if blur:
-                image[:,:,1] = gaussian(image[:,:,1], self._sigma)
-                image[:,:,2] = gaussian(image[:,:,2], self._sigma)
-
-        # convert to CIEL*a*b
-        if (colorspace is 'CIEL*a*b*'):
-            image = remap_CIELab(image)
+        # Convert colorspace and blur if needed
+        image = self._convert_colorspace(image,colorspace,blur)
 
         # Transpose back to format required for the neural network
         return np.transpose(image, [2,0,1]).reshape(1,3,self._superbatch_shape[2],self._superbatch_shape[3]).astype('float32')
@@ -180,15 +177,15 @@ class NNPreprocessor(object):
         """ 
         INPUT:
                 blur: Blur the target output of the image if True (only performed on the CIELab colorspace output)
-                colorspace: the colorspace that the image will be put in;
+                colorspace: the colorspace that the images will be put in;
                         'CIELab' for CIELab colorspace
                         'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
                         'RGB' for rgb mapped between [0 and 1]
+                        'YUV' for YUV (NOT FUNCTIONAL YET)
+                        'HSV' for HSV
         OUTPUT:
                 A randomly selected image in the specified colorspace of shape=(1, 3,image_x,image_y)
         """
-        assert ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') or (colorspace == 'RGB') ), \
-        "the colorspace must be 'CIELab' or 'CIEL*a*b*' or 'RGB'"
 
         # get sorted list of superbatches
         superbatchlist = sorted(os.listdir(self._folder))
@@ -211,15 +208,15 @@ class NNPreprocessor(object):
         INPUT:
                 n_images:  number of images to return
                 blur: Blur the target output of the image if True (only performed on the CIELab colorspace output)
-                colorspace: the colorspace that the image will be put in;
+                colorspace: the colorspace that the images will be put in;
                         'CIELab' for CIELab colorspace
                         'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
                         'RGB' for rgb mapped between [0 and 1]
+                        'YUV' for YUV (NOT FUNCTIONAL YET)
+                        'HSV' for HSV
         OUTPUT:
                 A randomly selected image batch in the specified colorspace of shape=(n_images, 3,image_x,image_y)
         """
-        assert ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') or (colorspace == 'RGB') ), \
-        "the colorspace must be 'CIELab' or 'CIEL*a*b*' or 'RGB'"
 
         batch = np.empty((0,3,self._superbatch_shape[2],self._superbatch_shape[3])).astype('float32')
         # Get random images andstack them
@@ -311,7 +308,35 @@ class NNPreprocessor(object):
             # Get an image from the batch and change axis directions to match normal specification (x, y, n_channels)
             image = np.transpose(batch[index,:,:,:], [1,2,0])
 
-            # Convert to CIELab
+            # Convert the image to the correct colorspace, and blur if needed
+            image = self._convert_colorspace(image,self._colorspace,self._blur)
+
+            # Transpose back to format required for the neural network and save it in the original batch
+            batch[index,:,:,:] = np.transpose(image, [2,0,1])
+
+        # Cast to float32 
+        batch = batch.astype('float32')
+        return batch
+
+    def _convert_colorspace(self,image,colorspace,blur=False):
+        """ 
+        INPUT:
+                image: The image to be converted to the specified colorspace, should have shape=(image_x,image_y,3)
+                        the input colorspace should be RGB mapped between [0 and 1], (it will return the same image if colorspace is set to RGB)
+                colorspace: the colorspace that the images will be put in;
+                        'CIELab' for CIELab colorspace
+                        'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
+                        'RGB' for rgb mapped between [0 and 1]
+                        'YUV' for YUV (NOT FUNCTIONAL YET)
+                        'HSV' for HSV
+        OUTPUT:
+                The image converted to the specified colorspace of shape=(image_x,image_y,3)
+        """
+        # Check if colorspace is properly defined
+        assert_colorspace(colorspace)
+
+        # Convert to CIELab
+        if ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') ):
             # This converts the rgb to XYZ where:
             # X is in [0, 95.05]
             # Y is in [0, 100]
@@ -321,21 +346,25 @@ class NNPreprocessor(object):
             # a is in [-431.034,  431.034] --> [-500*(1-16/116), 500*(1-16/116)]
             # b is in [-172.41379, 172.41379] --> [-200*(1-16/116), 200*(1-16/116)]
             image = color.rgb2lab(image)
-            
 
-            if self._blur:
+            if blur:
                 image[:,:,1] = gaussian(image[:,:,1], self._sigma)
                 image[:,:,2] = gaussian(image[:,:,2], self._sigma)
 
-            # Remap image so the layers are between 0 and 1
+        # convert to CIEL*a*b
+        if (colorspace == 'CIEL*a*b*'):
             image = remap_CIELab(image)
 
-            # Transpose back to format required for the neural network and save it in the original batch
-            batch[index,:,:,:] = np.transpose(image, [2,0,1])
+        # convert to YCbCr
+        if (colorspace == 'YUV'):
+            # image = color.rgb2yuv(image)
+            pass
+            # remap?
 
-        # Cast to float32 
-        batch = batch.astype('float32')
-        return batch
+        if (colorspace == 'HSV'):
+            image = color.rgb2hsv(image)
+
+        return image
 
 
 
@@ -351,16 +380,16 @@ def remap_CIELab(image):
     """
 
     # Normalize image so that all layers are between 0 - 1 (this is to fit the hole rgb part of the LAB space in a unit-cube)
-    #image[:,:,0] /= 100.
-    #image[:,:,1] = (image[:,:,1] + 500.*(1-16./116.)) / (1000.*(1-16./116.))
-    #image[:,:,2] = (image[:,:,2] + 200*(1-16./116.)) / (400.*(1-16./116.))
+    image[:,:,0] /= 100.
+    image[:,:,1] = (image[:,:,1] + 500.*(1-16./116.)) / (1000.*(1-16./116.))
+    image[:,:,2] = (image[:,:,2] + 200*(1-16./116.)) / (400.*(1-16./116.))
 
     # L max ~ 100, L min ~ 0
     # a max ~ 100, a min ~ -65
     # b max ~ 95, b min ~ -105
-    image[:,:,0] /= 100.
-    image[:,:,1] = (image[:,:,1] + 125.) / 250.
-    image[:,:,2] = (image[:,:,2] + 150.) / 300.
+    #image[:,:,0] /= 100.
+    #image[:,:,1] = (image[:,:,1] + 125.) / 250.
+    #image[:,:,2] = (image[:,:,2] + 150.) / 300.
 
     return image
 
@@ -375,15 +404,27 @@ def unmap_CIELab(image):
     """
 
     # Inverse of function remap_CIELab
-    image[:,:,0] *= 100.
-    image[:,:,1] = image[:,:,1]*250. - 125.
-    image[:,:,2] = image[:,:,2]*300. - 150.
-
     #image[:,:,0] *= 100.
-    #image[:,:,1] = image[:,:,1] * (1000.*(1-16./116.)) - 500.*(1-16./116.)
-    #image[:,:,2] = image[:,:,2] * (400.*(1-16./116.))  - 200.*(1-16./116.) 
+    #image[:,:,1] = image[:,:,1]*250. - 125.
+    #image[:,:,2] = image[:,:,2]*300. - 150.
+
+    image[:,:,0] *= 100.
+    image[:,:,1] = image[:,:,1] * (1000.*(1-16./116.)) - 500.*(1-16./116.)
+    image[:,:,2] = image[:,:,2] * (400.*(1-16./116.))  - 200.*(1-16./116.) 
 
     return image
 
 
-    
+def assert_colorspace(colorspace):
+    """ Raise an error if the colorspace is not an allowed one 
+    INPUT:
+            colorspace: the colorspace that the images will be put in;
+                        'CIELab' for CIELab colorspace
+                        'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
+                        'RGB' for rgb mapped between [0 and 1]
+                        'YUV' for YUV (NOT FUNCTIONAL YET)
+                        'HSV' for HSV
+    """
+    # Check if colorspace is properly defined
+    assert ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') or (colorspace == 'RGB') or (colorspace == 'YCbCr') or (colorspace == 'HSV') ), \
+    "the colorspace must be 'CIELab' or 'CIEL*a*b*' or 'RGB' or YCbCr or 'HSV'" 
