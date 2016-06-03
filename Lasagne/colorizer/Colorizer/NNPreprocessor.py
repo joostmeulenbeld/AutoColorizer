@@ -173,16 +173,17 @@ class NNPreprocessor(object):
         # Transpose back to format required for the neural network
         return np.transpose(image, [2,0,1]).reshape(1,3,self._superbatch_shape[2],self._superbatch_shape[3]).astype('float32')
 
-    def get_random_image(self, blur=False, colorspace='CIEL*a*b*'):
+    def get_random_image(self, colorspace, blur=False):
         """ 
         INPUT:
-                blur: Blur the target output of the image if True (only performed on the CIELab colorspace output)
                 colorspace: the colorspace that the images will be put in;
                         'CIELab' for CIELab colorspace
                         'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
                         'RGB' for rgb mapped between [0 and 1]
                         'YUV' for YUV (NOT FUNCTIONAL YET)
                         'HSV' for HSV
+                blur: Blur the target output of the image if True (only performed on the CIELab colorspace output)
+                
         OUTPUT:
                 A randomly selected image in the specified colorspace of shape=(1, 3,image_x,image_y)
         """
@@ -203,17 +204,18 @@ class NNPreprocessor(object):
         return self.get_image(superbatchnr, imagenr, blur, colorspace)
 
 
-    def get_random_images(self,n_images, blur=False, colorspace='CIEL*a*b*'):
+    def get_random_images(self,n_images, colorspace, blur=False):
         """ 
         INPUT:
-                n_images:  number of images to return
-                blur: Blur the target output of the image if True (only performed on the CIELab colorspace output)
                 colorspace: the colorspace that the images will be put in;
                         'CIELab' for CIELab colorspace
                         'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
                         'RGB' for rgb mapped between [0 and 1]
                         'YUV' for YUV (NOT FUNCTIONAL YET)
                         'HSV' for HSV
+                n_images:  number of images to return
+                blur: Blur the target output of the image if True (only performed on the CIELab colorspace output)
+                
         OUTPUT:
                 A randomly selected image batch in the specified colorspace of shape=(n_images, 3,image_x,image_y)
         """
@@ -222,7 +224,7 @@ class NNPreprocessor(object):
         # Get random images andstack them
         for i in range(n_images):
 
-            image = self.get_random_image(blur,colorspace)
+            image = self.get_random_image(colorspace, blur)
             batch = np.append(batch, image, axis=0)
 
         return batch

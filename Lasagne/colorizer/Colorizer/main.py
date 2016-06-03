@@ -8,7 +8,7 @@ import os
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 1
+n_epoch = 0
 
 # Folder where the training superbatches are stored
 training_folder='fruit_training'
@@ -184,7 +184,7 @@ while True:
 
     try:
         # get random images from the validation set
-        images = validation_data.get_random_images(n_images)
+        images = validation_data.get_random_images(n_images,colorspace=colorspace)
 
         # Run through the NN (validate to keep shape the same)
         NN_images, _ = NNColorizer.validate_NN(images)

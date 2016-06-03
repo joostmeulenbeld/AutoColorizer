@@ -67,32 +67,42 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
         ORG_img = array2img(ORGbatch[int(index/2),:,:,:],colorspace)
         NN_img  = array2img(NNbatch[int(index/2),:,:,:],colorspace)
 
-        # Get the a and b layers
-        ORG_a = ORGbatch[int(index/2),1,:,:]
-        ORG_b = ORGbatch[int(index/2),2,:,:]
+        if (colorspace == 'CIEL*a*b*'):
+            # Get the a and b layers
+            ORG_1 = ORGbatch[int(index/2),1,:,:]
+            ORG_2 = ORGbatch[int(index/2),2,:,:]
         
-        NN_a = NNbatch[int(index/2),1,:,:]
-        NN_b = NNbatch[int(index/2),2,:,:]
+            NN_1 = NNbatch[int(index/2),1,:,:]
+            NN_2 = NNbatch[int(index/2),2,:,:]
+        elif (colorspace == 'HSV'):
+            # Get the H and S layers
+            ORG_1 = ORGbatch[int(index/2),0,:,:]
+            ORG_2 = ORGbatch[int(index/2),1,:,:]
+        
+            NN_1 = NNbatch[int(index/2),0,:,:]
+            NN_2 = NNbatch[int(index/2),1,:,:]
+        else:
+            raise ValueError("Cannot handle this colorspace, can only process 'CIEL*a*b*' and 'HSV'")
 
         # Show original image
         ax[index,0].axis('off')
         ax[index,0].imshow(ORG_img)
         # show the a layer
         ax[index,1].axis('off')
-        ax[index,1].imshow(ORG_a,cmap='gray')
+        ax[index,1].imshow(ORG_1,cmap='gray')
         # Show the b layer
         ax[index,2].axis('off')
-        ax[index,2].imshow(ORG_b,cmap='gray')
+        ax[index,2].imshow(ORG_2,cmap='gray')
 
         # Show the NN image
         ax[index+1,0].axis('off')
         ax[index+1,0].imshow(NN_img)
         # show the a layer
         ax[index+1,1].axis('off')
-        ax[index+1,1].imshow(NN_a,cmap='gray')
+        ax[index+1,1].imshow(NN_1,cmap='gray')
         # Show the b layer
         ax[index+1,2].axis('off')
-        ax[index+1,2].imshow(NN_b,cmap='gray')
+        ax[index+1,2].imshow(NN_2,cmap='gray')
 
     # Show the figures
     plot.show()
