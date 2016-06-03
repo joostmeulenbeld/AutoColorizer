@@ -18,7 +18,10 @@ AutoColorizer/*.db
 Lasagne/colorizer/Colorizer/flower_training/
 Lasagne/colorizer/Colorizer/flower_validation/
 Lasagne/colorizer/Colorizer/fruit_training/
+Lasagne/colorizer/Colorizer/fruit_validation/
 Lasagne/colorizer/Colorizer/landscape_training/
+
+
 
 # Build results
 

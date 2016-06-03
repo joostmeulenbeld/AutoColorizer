@@ -1,59 +1,50 @@
-﻿
-def CIELab_array2img(CIELab):
-    """ INPUT:
-                CIELab: Lab layers in an array of shape=(3,image_x, image_y)
-        OUTPUT:
-                Image
+﻿import numpy as np
+from NNPreprocessor import unmap_CIELab
+from skimage import color
+from PIL import Image
+import matplotlib.pyplot as plot
+
+def array2img(array, colorspace):
+    """ 
+    INPUT:
+            array: Lab layers in an array of shape=(3, image_x, image_y)
+            colorspace: the colorspace that the image is in;
+                        'CIELab' for CIELab colorspace
+                        'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
+                        'RGB' for rgb mapped between [0 and 1]
+    OUTPUT:
+            Image
     """
-    # Convert it to show the image!
-    
-    return Image.fromarray(img_out,'YCbCr')
+    assert ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') or (colorspace == 'RGB') ), \
+        "the colorspace must be 'CIELab' or 'CIEL*a*b*' or 'RGB'"
 
-def split_batch(batch):
-    """ INPUT:
-                batch: batch to split into input and target
+    # Convert the image to shape=(image_x, image_y, 3)
+    image = np.transpose(array,[1,2,0]).astype('float64')
 
-        OUTPUT:
-                a list containing the batch_input and the batch_target: [batch_input, batch_target]
+    if (colorspace is 'CIEL*a*b*'):
+        # Convert to CIELab:
+        image = unmap_CIELab(image)
+
+    if ( (colorspace is 'CIELab') or (colorspace is 'CIEL*a*b*') ):
+        # Convert to rgb:
+        image = color.lab2rgb(image)
+
+    # Now the image is definitely in RGB colorspace
+    return Image.fromarray(np.uint8(image*255),"RGB")
+
+
+
+def show_images_with_ab_channels(ORGbatch, NNbatch):
+    """ 
+    INPUT:
+            ORGbatch: batch of (original) images with shape=(batch_size, 3, image_x, image_y)
+                        Must be in CIEL*a*b* colorspace, see NNPreprocessor function remap
+            NNbatch : batch of (NN output) images with shape=(batch_size, 3, image_x, image_y)
+                        Must be in CIEL*a*b* colorspace, see NNPreprocessor function remap
     """
+    assert (ORGbatch.shape == NNbatch.shape), "ORGbatch and NNbatch do not have the same shape"
 
-    # target is the UV layers
-    batch_target = batch[:,[1,2],:,:]
-    batch_target = batch_target.reshape(batch_size,2,image_x,image_y)
-    # input is the Y layer
-    batch_input = batch[:,0,:,:]
-    batch_input = batch_input.reshape(batch_size,1,image_x,image_y)
-
-    return [batch_input, batch_target]
-
-def batch2img(batch, colorspace):
-    """ INPUT: 
-                batch: batch to convert to images
-                colorspace:  the colorspace to convert from, either: 'CIELab' or 'RGB'
-
-        OUTPUT: 
-                list of images
-    """
-
-    (n_images, _, image_x, image_y) = batch.shape
-
-    # Loop over the batch
-    for img_number in range(n_images):
-
-        # Get the original image:
-        img = self.NNout2img(img_input,img_target)
-
-
-    return [ORG_img, NN_img]
-
-def show_random_images_with_UV_channels(n_images, folder='validation'):
-    pass
-
-def show_images_with_UV_channels(batch):
-    """ INPUT:
-                batch: batch of images with shape=(batch_size, 3, image_x, image_y)
-    """
-    n_images,_,_,_ = images.shape
+    n_images,_,_,_ = ORGbatch.shape
 
     # Create figure
     f, ax = plot.subplots(n_images*2,3)
@@ -62,30 +53,36 @@ def show_images_with_UV_channels(batch):
     for index in range(0,n_images*2,2):
 
         # Get the image
-        (ORG_img, NN_img) = self.batch2img(int(batch_ids[int(index/2)]),int(img_ids[int(index/2)]),folder=folder)
-        # Get the U and V layers
-        _, ORG_U, ORG_V = ORG_img.split()
-        _, NN_U, NN_V = NN_img.split()
+        ORG_img = array2img(ORGbatch[int(index/2),:,:,:],'CIEL*a*b*')
+        NN_img  = array2img(NNbatch[int(index/2),:,:,:],'CIEL*a*b*')
+
+        # Get the a and b layers
+        ORG_a = ORGbatch[int(index/2),1,:,:]
+        ORG_b = ORGbatch[int(index/2),2,:,:]
+        
+        NN_a = NNbatch[int(index/2),1,:,:]
+        NN_b = NNbatch[int(index/2),2,:,:]
 
         # Show original image
         ax[index,0].axis('off')
         ax[index,0].imshow(ORG_img)
-        # show the U layer
+        # show the a layer
         ax[index,1].axis('off')
-        ax[index,1].imshow(ORG_U,cmap='gray')
-        # Show the V layer
+        ax[index,1].imshow(ORG_a,cmap='gray')
+        # Show the b layer
         ax[index,2].axis('off')
-        ax[index,2].imshow(ORG_V,cmap='gray')
+        ax[index,2].imshow(ORG_b,cmap='gray')
 
         # Show the NN image
         ax[index+1,0].axis('off')
         ax[index+1,0].imshow(NN_img)
-        # show the U layer
+        # show the a layer
         ax[index+1,1].axis('off')
-        ax[index+1,1].imshow(NN_U,cmap='gray')
-        # Show the V layer
+        ax[index+1,1].imshow(NN_a,cmap='gray')
+        # Show the b layer
         ax[index+1,2].axis('off')
-        ax[index+1,2].imshow(NN_V,cmap='gray')
+        ax[index+1,2].imshow(NN_b,cmap='gray')
 
     # Show the figures
     plot.show()
+
