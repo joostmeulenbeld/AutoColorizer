@@ -1,4 +1,11 @@
-﻿import numpy as np
+﻿"""
+The file that defines functions to visualize the output of the NN.
+
+author: Dawud Hage, written for the NN course IN4015 of the TUDelft
+
+"""
+
+import numpy as np
 from NNPreprocessor import unmap_CIELab, assert_colorspace
 from skimage import color
 from PIL import Image
@@ -9,10 +16,10 @@ def array2img(array, colorspace):
     INPUT:
             array: Lab layers in an array of shape=(3, image_x, image_y)
             colorspace: the colorspace that the array is in;
-                        'CIELab' for CIELab colorspace
+                        ''CIELab' for CIELab colorspace
                         'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
                         'RGB' for rgb mapped between [0 and 1]
-                        'YUV' for YUV (NOT FUNCTIONAL YET)
+                        'YCbCr' for YCbCr
                         'HSV' for HSV
     OUTPUT:
             Image
@@ -34,8 +41,12 @@ def array2img(array, colorspace):
     if (colorspace == 'HSV'):
         image = color.hsv2rgb(image)
 
-    # Now the image is definitely in RGB colorspace
-    return Image.fromarray(np.uint8(image*255),"RGB")
+    # YCbCr is supported by the PIL Image pkg. so just change the mode that is passed
+    if not(colorspace == 'YCbCr'):
+        colorspace = 'RGB'
+
+    # Now the image is definitely in a supported colorspace
+    return Image.fromarray(np.uint8(image*255.),mode=colorspace)
 
 
 
@@ -50,7 +61,7 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
                         'CIELab' for CIELab colorspace
                         'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
                         'RGB' for rgb mapped between [0 and 1]
-                        'YUV' for YUV (NOT FUNCTIONAL YET)
+                        'YCbCr' for YCbCr
                         'HSV' for HSV
     """
     assert (ORGbatch.shape == NNbatch.shape), "ORGbatch and NNbatch do not have the same shape"
@@ -58,7 +69,7 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
     n_images,_,_,_ = ORGbatch.shape
 
     # Create figure
-    f, ax = plot.subplots(n_images*2,3)
+    f, ax = plot.subplots(n_images*2,4)
 
     # and loop over the images
     for index in range(0,n_images*2,2):
@@ -67,42 +78,51 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
         ORG_img = array2img(ORGbatch[int(index/2),:,:,:],colorspace)
         NN_img  = array2img(NNbatch[int(index/2),:,:,:],colorspace)
 
-        if (colorspace == 'CIEL*a*b*'):
-            # Get the a and b layers
-            ORG_1 = ORGbatch[int(index/2),1,:,:]
-            ORG_2 = ORGbatch[int(index/2),2,:,:]
-        
-            NN_1 = NNbatch[int(index/2),1,:,:]
-            NN_2 = NNbatch[int(index/2),2,:,:]
+        # Define the different channel ids to show
+        # (gray, layer_1, layer_2)
+        if (colorspace == 'CIEL*a*b*') or (colorspace == 'YCbCr'):
+            channels = (0,1,2)
         elif (colorspace == 'HSV'):
-            # Get the H and S layers
-            ORG_1 = ORGbatch[int(index/2),0,:,:]
-            ORG_2 = ORGbatch[int(index/2),1,:,:]
-        
-            NN_1 = NNbatch[int(index/2),0,:,:]
-            NN_2 = NNbatch[int(index/2),1,:,:]
+            channels = (2,0,1)
         else:
             raise ValueError("Cannot handle this colorspace, can only process 'CIEL*a*b*' and 'HSV'")
 
+        # Get the grayscale input
+        ORG_gray = ORGbatch[int(index/2),channels[0],:,:]
+        # Get the 1 and 2 layers
+        ORG_1 = ORGbatch[int(index/2),channels[1],:,:]
+        ORG_2 = ORGbatch[int(index/2),channels[2],:,:]
+        
+        NN_1 = NNbatch[int(index/2),channels[1],:,:]
+        NN_2 = NNbatch[int(index/2),channels[2],:,:]
+
         # Show original image
+        # grayscale input
         ax[index,0].axis('off')
-        ax[index,0].imshow(ORG_img)
-        # show the a layer
+        ax[index,0].imshow(ORG_gray,cmap='gray')
+        # color image
         ax[index,1].axis('off')
-        ax[index,1].imshow(ORG_1,cmap='gray')
-        # Show the b layer
+        ax[index,1].imshow(ORG_img)
+        # show the a layer
         ax[index,2].axis('off')
-        ax[index,2].imshow(ORG_2,cmap='gray')
+        ax[index,2].imshow(ORG_1,cmap='gray')
+        # Show the b layer
+        ax[index,3].axis('off')
+        ax[index,3].imshow(ORG_2,cmap='gray')
 
         # Show the NN image
+        # grayscale input
         ax[index+1,0].axis('off')
-        ax[index+1,0].imshow(NN_img)
-        # show the a layer
+        ax[index+1,0].imshow(ORG_gray,cmap='gray')
+        # The colored image
         ax[index+1,1].axis('off')
-        ax[index+1,1].imshow(NN_1,cmap='gray')
-        # Show the b layer
+        ax[index+1,1].imshow(NN_img)
+        # show the a layer
         ax[index+1,2].axis('off')
-        ax[index+1,2].imshow(NN_2,cmap='gray')
+        ax[index+1,2].imshow(NN_1,cmap='gray')
+        # Show the b layer
+        ax[index+1,3].axis('off')
+        ax[index+1,3].imshow(NN_2,cmap='gray')
 
     # Show the figures
     plot.show()

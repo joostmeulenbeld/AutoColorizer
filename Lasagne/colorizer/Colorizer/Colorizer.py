@@ -1,4 +1,11 @@
-﻿import numpy as np
+﻿"""
+The class file that defines the NN and creates the Theano functions to run it.
+
+author: Dawud Hage, written for the NN course IN4015 of the TUDelft
+
+"""
+
+import numpy as np
 import theano
 import theano.tensor as T
 import lasagne
@@ -73,9 +80,14 @@ class Colorizer(object):
 
             # summaraze to define the loss
             loss = T.sum(Sdist) + T.sum(Hdist)
-
+        elif (self._colorspace == 'YCbCr'):
+            # Get the sum squared error per image
+            loss = lasagne.objectives.squared_error(output,target) # shape = (batch_size, 2, image_x, image_y)
+            loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
+            # And take the mean over the batch
+            loss = loss.mean()
         else:
-            raise ValueError("Cannot handle this colorspace, can only process 'CIEL*a*b*' and 'HSV'")
+            raise ValueError("Cannot handle this colorspace, can only process 'CIEL*a*b*', 'HSV' and 'YCbCr'")
 
         # Create update expressions for training, i.e., how to modify the
         # parameters at each training step. Here, we'll use Stochastic Gradient
@@ -163,7 +175,7 @@ class Colorizer(object):
         """
         (batch_size,_,image_x,image_y) = batch.shape
 
-        if (self._colorspace == 'CIEL*a*b*'):
+        if (self._colorspace == 'CIEL*a*b*') or (self._colorspace == 'YCbCr'):
             # target is the a*b* layers
             batch_target = batch[:,[1,2],:,:]
         elif (self._colorspace == 'HSV'):
@@ -172,7 +184,7 @@ class Colorizer(object):
 
         batch_target = batch_target.reshape(batch_size,2,image_x,image_y)
 
-        if (self._colorspace == 'CIEL*a*b*'):
+        if (self._colorspace == 'CIEL*a*b*') or (self._colorspace == 'YCbCr'):
             # input is the L* layer
             batch_input = batch[:,0,:,:]
         elif (self._colorspace == 'HSV'):

@@ -1,4 +1,11 @@
-﻿from NNPreprocessor import NNPreprocessor
+﻿"""
+The main file to run, train and evaluate the Neural network
+
+author: Dawud Hage, written for the NN course IN4015 of the TUDelft
+
+"""
+
+from NNPreprocessor import NNPreprocessor
 import NNVisualizer as NNshow
 from time import time
 import numpy as np
@@ -16,19 +23,19 @@ training_folder='fruit_training'
 validation_folder='fruit_validation'
 
 # The colorspace to run the NN in
-colorspace='HSV'
+colorspace='CIEL*a*b*'
 
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
 param_file = None
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'param_fruit_HSV'
+param_save_file = 'params_fruit_CIELab'
 
 # error folder where the error files are stored
 error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'error_fruit_HSV'
+error_file = 'error_fruit_CIELab'
 
 
 ######################
@@ -188,10 +195,10 @@ while True:
 
         # Run through the NN (validate to keep shape the same)
         NN_images, _ = NNColorizer.validate_NN(images)
-        # Append with L layer
-        if (colorspace == 'CIEL*a*b*'):
+        # Append with Luminocity layer
+        if not(colorspace == 'HSV'):
             NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
-        elif (colorspace == 'HSV'):
+        else:
             NN_images = np.append(NN_images,images[:,2,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),axis=1)
 
         ## Show them :)
@@ -205,3 +212,15 @@ while True:
 
 
 
+#from NNPreprocessor import NNPreprocessor
+#from PIL import Image
+#import numpy as np
+
+#validation_folder='landscape_validation'
+#validation_data = NNPreprocessor(batch_size=1, folder=validation_folder, colorspace='YCbCr', random_superbatches=False, blur=False, randomize=False)
+#image = validation_data.get_random_image('YCbCr')
+#image = image.reshape(3,image.shape[2],image.shape[3])
+#image = np.transpose(image,(1,2,0))
+## convert to PIL image
+#imagep = Image.fromarray(np.uint8(image*255),'YCbCr')
+#imagep.show()
