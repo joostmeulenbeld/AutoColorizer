@@ -23,19 +23,19 @@ training_folder='fruit_training'
 validation_folder='fruit_validation'
 
 # The colorspace to run the NN in
-colorspace='CIEL*a*b*'
+colorspace='YCbCr'
 
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
 param_file = None
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'params_fruit_CIELab'
+param_save_file = 'params_fruit_YCbCr'
 
 # error folder where the error files are stored
 error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'error_fruit_CIELab'
+error_file = 'error_fruit_YCbCr'
 
 
 ######################
