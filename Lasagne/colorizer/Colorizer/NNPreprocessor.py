@@ -347,7 +347,8 @@ class NNPreprocessor(object):
         batch = batch.astype('float32')
         return batch
 
-    def _convert_colorspace(self,image,colorspace,blur=False):
+    @staticmethod
+    def _convert_colorspace(image,colorspace,blur=False):
         """ 
         INPUT:
                 image: The image to be converted to the specified colorspace, should have shape=(image_x,image_y,3)

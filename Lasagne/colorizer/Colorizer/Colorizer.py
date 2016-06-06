@@ -61,6 +61,7 @@ class Colorizer(object):
             # And take the mean over the batch
             loss = loss.mean()
         elif (self._colorspace == 'HSV'):
+            ## CHANGE THIS, THE ERROR IS NOW SUMMED OVER THE BATCHES
             # Only on the first layer, the H layer compute the distance.
             # The coordinates are circular so 0 == 1 
             Hx = output[:,0,:,:]
@@ -81,8 +82,17 @@ class Colorizer(object):
             # summaraze to define the loss
             loss = T.sum(Sdist) + T.sum(Hdist)
         elif (self._colorspace == 'YCbCr'):
-            # Get the sum squared error per image
-            loss = lasagne.objectives.squared_error(output,target) # shape = (batch_size, 2, image_x, image_y)
+            # OLD Loss function:
+            ## Get the sum squared error per image
+            #loss = lasagne.objectives.squared_error(output,target) # shape = (batch_size, 2, image_x, image_y)
+            #loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
+            ## And take the mean over the batch
+            #loss = loss.mean()
+
+            # New loss function
+            loss_output = T.sgn(output-0.5)*( 2**(abs(output-0.5)) - 1 )
+            loss_target = T.sgn(target-0.5)*( 2**(abs(target-0.5)) - 1 )
+            loss = lasagne.objectives.squared_error(loss_output, loss_target) # shape = (batch_size, 2, image_x, image_y)
             loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
             # And take the mean over the batch
             loss = loss.mean()

@@ -5,7 +5,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>8f1924a8-4015-4d5a-bc3e-a26a184595ce</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>main.py</StartupFile>
+    <StartupFile>plot_colorspace.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -36,6 +36,7 @@
     <Compile Include="NNVisualizer.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="plot_colorspace.py" />
     <Compile Include="show_images.py">
       <SubType>Code</SubType>
     </Compile>

@@ -10,6 +10,7 @@ from NNPreprocessor import unmap_CIELab, assert_colorspace
 from skimage import color
 from PIL import Image
 import matplotlib.pyplot as plot
+import os
 
 def array2img(array, colorspace):
     """ 
@@ -127,3 +128,84 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
     # Show the figures
     plot.show()
 
+def print_progress(string, elapsed_time, progress):
+    """
+    Print a fancy progress bar in the console
+    INPUT:
+            string: A string printed before the :
+            elapsed_time: The elapsed time in seconds
+            progress: The progress in percentage
+    """
+    n_bars = np.floor(progress/100*20).astype('int')
+    remaining_time = {'total_seconds': np.floor( (elapsed_time / progress * 100) - elapsed_time).astype('int')}
+    remaining_time['hour'] = np.floor(remaining_time['total_seconds'] / 3600).astype('int')
+    remaining_time['minutes'] = np.floor( (remaining_time['total_seconds'] - 3600*remaining_time['hour']) / 60).astype('int')
+    remaining_time['seconds'] = np.floor( (remaining_time['total_seconds'] - 3600*remaining_time['hour'] - 60*remaining_time['minutes'])).astype('int')
+    print("{}: {:3.1f}% |{}| Remaining time: {:0>2}:{:0>2}:{:0>2}                                \r".format(    string,
+                                                                                                                progress,
+                                                                                                                "#"*n_bars + " "*(20 - n_bars),
+                                                                                                                remaining_time['hour'],
+                                                                                                                remaining_time['minutes'],
+                                                                                                                remaining_time['seconds']),end="")
+
+
+def plot_errors(error):
+    """This function plots the validation error and train error
+    INPUT:
+            error: the error log as saved in the error files
+    """
+
+    plot.plot(error[:,0],error[:,1],label='Train error')
+    plot.plot(error[:,0],error[:,2],label='Validation error')
+    plot.xlabel('epoch')
+    plot.ylabel('error')
+    plot.legend()
+    plot.show()
+
+##### MENU FUNCTIONS #####
+
+def cls():
+    """ Clear the console """
+    os.system('cls' if os.name=='nt' else 'clear')
+
+
+def get_int(validation_list=None):
+    """
+    Get an integer from the user
+    INPUT:
+            List of integers to check for existance
+    """
+    while True:
+        try:
+            user_int = int(input("\t"))       
+        except ValueError:
+            print("It should be an integer, please try again!")
+            continue
+        else:
+            if not(validation_list is None):
+                # Check if it complies
+                if user_int in validation_list:
+                    break
+                else:
+                    print("The provided number is not allowed.")
+            else:
+                break
+
+    return user_int
+
+def gen_menu(menu_options):
+    """ This function prints a menu with options to evaluate/train the NN 
+    INPUT:
+            a list of options to be printed
+    OUTPUT:
+            The choice of the user
+    """
+
+    cls() # clear the console
+    print('-'*50)
+    print('Choose one of the following:')
+    for i, option in enumerate(menu_options):
+        print("{}. {}".format(i, option))
+    print('Your choice: \t')
+
+    return get_int()
