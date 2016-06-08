@@ -185,7 +185,7 @@ class NNPreprocessor(object):
         image = np.transpose(superbatch[image_id,:,:,:], [1,2,0]) / 255.
 
         # Convert colorspace and blur if needed
-        image = self._convert_colorspace(image,colorspace,blur)
+        image = self._convert_colorspace(image,colorspace,blur,self._sigma)
 
         # Transpose back to format required for the neural network
         return np.transpose(image, [2,0,1]).reshape(1,3,self._superbatch_shape[2],self._superbatch_shape[3]).astype('float32')
@@ -338,7 +338,7 @@ class NNPreprocessor(object):
             image = np.transpose(batch[index,:,:,:], [1,2,0])
 
             # Convert the image to the correct colorspace, and blur if needed
-            image = self._convert_colorspace(image,self._colorspace,self._blur)
+            image = self._convert_colorspace(image,self._colorspace,self._blur, self._sigma)
 
             # Transpose back to format required for the neural network and save it in the original batch
             batch[index,:,:,:] = np.transpose(image, [2,0,1])
@@ -348,7 +348,7 @@ class NNPreprocessor(object):
         return batch
 
     @staticmethod
-    def _convert_colorspace(image,colorspace,blur=False):
+    def _convert_colorspace(image,colorspace,blur=False, sigma=3):
         """ 
         INPUT:
                 image: The image to be converted to the specified colorspace, should have shape=(image_x,image_y,3)
@@ -405,11 +405,11 @@ class NNPreprocessor(object):
         if (blur and ( (colorspace == 'CIELab') or
                       (colorspace == 'CIEL*a*b*') or 
                       (colorspace == 'YCbCr') ) ):
-            image[:,:,1] = gaussian(image[:,:,1], self._sigma)
-            image[:,:,2] = gaussian(image[:,:,2], self._sigma) 
+            image[:,:,1] = gaussian(image[:,:,1], sigma)
+            image[:,:,2] = gaussian(image[:,:,2], sigma) 
         elif (blur and (colorspace == 'HSV') ):
-            image[:,:,0] = gaussian(image[:,:,1], self._sigma)
-            image[:,:,1] = gaussian(image[:,:,2], self._sigma) 
+            image[:,:,0] = gaussian(image[:,:,1], sigma)
+            image[:,:,1] = gaussian(image[:,:,2], sigma) 
             
 
         return image
@@ -441,7 +441,7 @@ def remap_CIELab(image):
     
     # Keep aspectratio constant:
     image[:,:,0] /= 100.
-    image[:,:,1] = (image[:,:,2] + 200*(1-16./116.)) / (400.*(1-16./116.)) # take the same subset as for the b values, so the colors wont be skewed
+    image[:,:,1] = (image[:,:,1] + 200*(1-16./116.)) / (400.*(1-16./116.)) # take the same subset as for the b values, so the colors wont be skewed
     image[:,:,2] = (image[:,:,2] + 200*(1-16./116.)) / (400.*(1-16./116.)) # Normalize all b values
 
     return image
