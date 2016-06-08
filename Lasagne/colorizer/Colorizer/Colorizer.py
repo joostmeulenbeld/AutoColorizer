@@ -289,3 +289,91 @@ class Colorizer(object):
 
         return L_out
 
+    def _NN2(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+        """ 
+        This function defines the architecture of the Fruit colorizer network 
+   
+        INPUT:
+                input_var: a theano.tensor.tensor4 (and after theano function creation the data of size(batch_size, 1, image_size[1], image_size[2])
+                image_size: the size of the images, a 2D tuple 
+                filter_size: The convolutional filter size, a 2D tuple (EVEN FILTER SIZE IS NOT SUPPORTED!)
+                pool_size: the max_pool filter size between layers (also the upscale factor!)
+        OUTPUT:
+                Last lasagne layer of the network
+        """
+
+        # First make the input layer, batch size=none so any batch size will be accepted!
+        # image size is 128x128
+        network = {}
+        network['input'] = lasagne.layers.InputLayer(shape=(None, 1, 128, 128), input_var=input_var)
+
+        # Define the first layer
+        # Pad = same for keeping the dimensions equal to the input!
+        network['conv1']        = lasagne.layers.Conv2DLayer(network['input'] , num_filters=3, filter_size=filter_size, pad='same')
+        network['conv2']        = lasagne.layers.Conv2DLayer(network['conv1'], num_filters=12, filter_size=filter_size, pad='same')
+        # Take the batch norm
+        network['batch_norm1']  = lasagne.layers.batch_norm(network['conv2'])
+
+        # Define the second layer
+        # Max pool on first layer
+        network['max_pool1']    = lasagne.layers.MaxPool2DLayer(network['batch_norm1'], pool_size=pool_size)
+        network['conv3']        = lasagne.layers.Conv2DLayer(network['max_pool1'], num_filters=48, filter_size=filter_size, pad='same')
+        network['conv4']        = lasagne.layers.Conv2DLayer(network['conv3'], num_filters=48, filter_size=filter_size, pad='same')
+        # Take the batch norm
+        network['batch_norm2']  = lasagne.layers.batch_norm(network['conv4'])
+
+        # Define the third layer
+        # Max pool on the second layer
+        network['max_pool2']    = lasagne.layers.MaxPool2DLayer(network['batch_norm2'], pool_size=pool_size)
+        network['conv5']        = lasagne.layers.Conv2DLayer(network['max_pool2'], num_filters=96, filter_size=filter_size, pad='same')
+        network['conv6']        = lasagne.layers.Conv2DLayer(network['conv5'], num_filters=96, filter_size=filter_size, pad='same')
+        # Take the batch norm
+        network['batch_norm3']  = lasagne.layers.batch_norm(network['conv6'])
+
+        # Define the fourth layer
+        # Max pool on the second layer
+        network['max_pool3'] = lasagne.layers.MaxPool2DLayer(network['batch_norm3'], pool_size=pool_size)
+        network['conv7'] = lasagne.layers.Conv2DLayer(network['max_pool3'], num_filters=192, filter_size=filter_size, pad='same')
+        network['conv8'] = lasagne.layers.Conv2DLayer(network['conv7'], num_filters=192, filter_size=filter_size, pad='same')
+    
+        ## Now Construct the image again!
+        # Get the batch norm and reduce feature maps to fit previous layer
+        network['conv9'] = lasagne.layers.Conv2DLayer(network['conv8'], num_filters=96, filter_size=(1,1), pad='same')
+        network['batch_norm4'] = lasagne.layers.batch_norm(network['conv9'])
+        # Upscale layer 3 to fit L2 size
+        network['Upscale1'] = lasagne.layers.Upscale2DLayer(network['batch_norm4'], scale_factor=pool_size)
+
+        # Concate with L_3
+        network['concat1'] = lasagne.layers.concat([network['batch_norm3'], network['Upscale1']])
+        network['conv10'] = lasagne.layers.Conv2DLayer(network['concat1'], num_filters=96, filter_size=filter_size, pad='same')
+        network['conv11'] = lasagne.layers.Conv2DLayer(network['conv10'], num_filters=48, filter_size=filter_size, pad='same')
+        network['batch_norm5'] = lasagne.layers.batch_norm(network['conv11'])
+        # Upscale L_3 to fit L_2 size
+        network['Upscale2'] = lasagne.layers.Upscale2DLayer(network['batch_norm5'], scale_factor=pool_size)
+
+        # Concate with L_2
+        L_2 = lasagne.layers.concat([L_2, network['Upscale2']])
+        # Convolve L_2 to fit feature maps to L1
+        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=48, filter_size=filter_size, pad='same')
+        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=12, filter_size=filter_size, pad='same')
+        L_2 = lasagne.layers.batch_norm(L_2)
+        # Upscale L_2 to fit L_1 size
+        L_2 = lasagne.layers.Upscale2DLayer(L_2, scale_factor=pool_size)
+    
+        # Do the same for layer 1
+        L_1 = lasagne.layers.concat([L_1, L_2])
+        # Convolve L_1 to fit feature maps to L1
+        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=12, filter_size=filter_size, pad='same')
+        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=6, filter_size=filter_size, pad='same')
+        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=3, filter_size=filter_size, pad='same')
+    
+
+        # Convolve L_1 to fit the desired output
+        L_out = lasagne.layers.Conv2DLayer(L_1, num_filters=2, filter_size=filter_size, pad='same', 
+                                           nonlinearity=lasagne.nonlinearities.linear)
+
+        return L_out
+
+
+
+        
