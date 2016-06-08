@@ -64,7 +64,6 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
                         'HSV' for HSV
     """
     assert (ORGbatch.shape == NNbatch.shape), "ORGbatch and NNbatch do not have the same shape"
-
     n_images,_,_,_ = ORGbatch.shape
 
     # Create figure

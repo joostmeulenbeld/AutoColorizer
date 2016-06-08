@@ -68,7 +68,8 @@ class NNPreprocessor(object):
         try:
             self._filenames = os.listdir(folder)
         except:
-            print("Folder does not exist")
+            print("Folder '{}' does not exist".format(folder))
+            raise
 
         self._n_superbatches = len(self._filenames)
         self._superbatch_shape = np.load(os.path.join(self._folder, self._filenames[0]) , mmap_mode='r').shape
@@ -484,4 +485,3 @@ def assert_colorspace(colorspace):
     # Check if colorspace is properly defined
     assert ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') or (colorspace == 'RGB') or (colorspace == 'YCbCr') or (colorspace == 'HSV') ), \
     "the colorspace must be 'CIELab' or 'CIEL*a*b*' or 'RGB' or YCbCr or 'HSV'" 
-
