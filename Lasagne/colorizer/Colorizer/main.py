@@ -30,7 +30,7 @@ colorspace='CIEL*a*b*'
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
-param_file = None
+param_file = 'params_combination_CIELab_mapped'
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
 param_save_file = 'params_combination_CIELab_mapped'
 
