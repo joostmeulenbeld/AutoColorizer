@@ -113,8 +113,11 @@ class Colorizer(object):
 
         # Create theano functions to be used in the functions
         print("---Create the theano functions")
+        print("\t---Create eval_fn")
         self._eval_fn = theano.function([self._input],output)
+        print("\t---Create val_fn")
         self._val_fn = theano.function([self._input, self._target],[output, loss])
+        print("\t---Create train_fn")
         self._train_fn = theano.function([self._input, self._target],[output, loss], updates=updates)
 
 

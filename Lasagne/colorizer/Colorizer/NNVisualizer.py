@@ -64,7 +64,6 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
                         'HSV' for HSV
     """
     assert (ORGbatch.shape == NNbatch.shape), "ORGbatch and NNbatch do not have the same shape"
-
     n_images,_,_,_ = ORGbatch.shape
 
     # Create figure
@@ -101,7 +100,7 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
         ax[index,0].imshow(ORG_gray,cmap='gray')
         # color image
         ax[index,1].axis('off')
-        ax[index,1].imshow(ORG_img)
+        ax[index,1].imshow(np.asarray(ORG_img))
         # show the a layer
         ax[index,2].axis('off')
         ax[index,2].imshow(ORG_1,cmap='gray')
@@ -115,7 +114,7 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
         ax[index+1,0].imshow(ORG_gray,cmap='gray')
         # The colored image
         ax[index+1,1].axis('off')
-        ax[index+1,1].imshow(NN_img)
+        ax[index+1,1].imshow(np.asarray(NN_img))
         # show the a layer
         ax[index+1,2].axis('off')
         ax[index+1,2].imshow(NN_1,cmap='gray')
