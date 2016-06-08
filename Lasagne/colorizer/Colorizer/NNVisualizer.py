@@ -55,9 +55,7 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
     """ 
     INPUT:
             ORGbatch: batch of (original) images with shape=(batch_size, 3, image_x, image_y)
-                        Must be in CIEL*a*b* colorspace, see NNPreprocessor function remap
             NNbatch : batch of (NN output) images with shape=(batch_size, 3, image_x, image_y)
-                        Must be in CIEL*a*b* colorspace, see NNPreprocessor function remap
             colorspace: the colorspace that the input batches are in;
                         'CIELab' for CIELab colorspace
                         'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)

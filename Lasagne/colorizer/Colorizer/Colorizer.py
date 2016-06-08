@@ -34,28 +34,28 @@ class Colorizer(object):
         assert_colorspace(colorspace)
         self._colorspace = colorspace
 
-        input = T.tensor4('input')
-        target = T.tensor4('target') # shape=(batch_size,2,image_x,image_y)
+        self._input = T.tensor4('input')
+        self._target = T.tensor4('target') # shape=(batch_size,2,image_x,image_y)
 
         # Create the neural network
         print("---Create the neural network")
-        self._network = self._NN(input)
+        self._network = self._NN2(self._input)
 
         # Set params if given
         if not(param_file is None):
             param_load = np.load(param_file)
-            lasagne.layers.set_all_param_values(self._network, param_load)
+            lasagne.layers.set_all_param_values(self._network['out'], param_load)
             print("---Loaded param file: {}".format(param_file))
 
         # Get the output of the network
         print("---Get the output of the network")
-        output = lasagne.layers.get_output(self._network)
+        output = lasagne.layers.get_output(self._network['out'])
 
         # Get the sum squared error per image
         print("---Define loss function")
         if (self._colorspace == 'CIEL*a*b*'):
-            loss_output = T.sgn(output-0.5)*( 2**(abs(output-0.5)) - 1 )
-            loss_target = T.sgn(target-0.5)*( 2**(abs(target-0.5)) - 1 )
+            loss_output = T.sgn(output-0.5)* 2**(abs(output-0.5)) 
+            loss_target = T.sgn(self._target-0.5)* 2**(abs(self._target-0.5)) 
             loss = lasagne.objectives.squared_error(loss_output, loss_target) # shape = (batch_size, 2, image_x, image_y)
             loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
             # And take the mean over the batch
@@ -65,7 +65,7 @@ class Colorizer(object):
             # Only on the first layer, the H layer compute the distance.
             # The coordinates are circular so 0 == 1 
             Hx = output[:,0,:,:]
-            Hy = target[:,0,:,:]
+            Hy = self._target[:,0,:,:]
 
             # The minimum distance on a circle can be one of three things:
             # First if both points closest to eachother rotating from 0/1 CCW on a unit circle
@@ -76,7 +76,7 @@ class Colorizer(object):
             # On the saturation layer penalize large saturation error! 
             # the 2 can be changes if not saturated enough
             Sx = output[:,1,:,:]
-            Sy = target[:,1,:,:]
+            Sy = self._target[:,1,:,:]
             Sdist = ( 2**(Sx) -  2**(Sy) )**2
 
             # summaraze to define the loss
@@ -90,8 +90,8 @@ class Colorizer(object):
             #loss = loss.mean()
 
             # New loss function
-            loss_output = T.sgn(output-0.5)*( 2**(abs(output-0.5)) - 1 )
-            loss_target = T.sgn(target-0.5)*( 2**(abs(target-0.5)) - 1 )
+            loss_output = T.sgn(output-0.5)* 2**(abs(output-0.5))
+            loss_target = T.sgn(self._target-0.5)* 2**(abs(self._target-0.5))
             loss = lasagne.objectives.squared_error(loss_output, loss_target) # shape = (batch_size, 2, image_x, image_y)
             loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
             # And take the mean over the batch
@@ -103,9 +103,9 @@ class Colorizer(object):
         # parameters at each training step. Here, we'll use Stochastic Gradient
         # Descent (SGD) with adadelta and nesterov momentum.
         print("---Get all trainable parameters")
-        params = lasagne.layers.get_all_params(self._network, trainable=True)
-        print("--- --- # of parameters: {} ".format(lasagne.layers.count_params(self._network)))
-        print("--- --- # of trainable parameters: {} ".format(lasagne.layers.count_params(self._network, trainable=True)))
+        params = lasagne.layers.get_all_params(self._network['out'], trainable=True)
+        print("--- --- # of parameters: {} ".format(lasagne.layers.count_params(self._network['out'])))
+        print("--- --- # of trainable parameters: {} ".format(lasagne.layers.count_params(self._network['out'], trainable=True)))
         print("---Define update function")
         updates = lasagne.updates.adadelta(loss, params, learning_rate=1, rho=0.9, epsilon=1e-06)
         # Add nesterov momentum
@@ -113,9 +113,9 @@ class Colorizer(object):
 
         # Create theano functions to be used in the functions
         print("---Create the theano functions")
-        self._eval_fn = theano.function([input],output)
-        self._val_fn = theano.function([input, target],[output, loss])
-        self._train_fn = theano.function([input, target],[output, loss], updates=updates)
+        self._eval_fn = theano.function([self._input],output)
+        self._val_fn = theano.function([self._input, self._target],[output, loss])
+        self._train_fn = theano.function([self._input, self._target],[output, loss], updates=updates)
 
 
         print("Initialized the network")
@@ -171,8 +171,24 @@ class Colorizer(object):
                                 i.e. 'parameters.npy' 
         """
 
-        np.save(parameter_file,lasagne.layers.get_all_param_values(self._network))
+        np.save(parameter_file,lasagne.layers.get_all_param_values(self._network['out']))
         print("Stored the parameters to file: {}".format(parameter_file))
+
+    def get_layer_output(self, layer_name):
+        """ Create a theano function that outputs the output of a specific layer specified by layer_name 
+        INPUT:
+                layer_name: The name of the layer, the key in the dict as specified in the architecture definition 
+        OUTPUT: 
+                the theano function, requiring the input of the NN and returning the output of that layer (whatever size it may be..)
+               
+        """
+        # Check if the key exists
+        assert layer_name in self._network, "No such key in the NN architecture, given key: {}".format(layer_name)
+
+
+        output = lasagne.layers.get_output(self._network[layer_name])
+
+        return theano.function([self._input],output)
 
     ########## Private functions ##########
     def _split_batch(self, batch):
@@ -332,47 +348,47 @@ class Colorizer(object):
 
         # Define the fourth layer
         # Max pool on the second layer
-        network['max_pool3'] = lasagne.layers.MaxPool2DLayer(network['batch_norm3'], pool_size=pool_size)
-        network['conv7'] = lasagne.layers.Conv2DLayer(network['max_pool3'], num_filters=192, filter_size=filter_size, pad='same')
-        network['conv8'] = lasagne.layers.Conv2DLayer(network['conv7'], num_filters=192, filter_size=filter_size, pad='same')
+        network['max_pool3']    = lasagne.layers.MaxPool2DLayer(network['batch_norm3'], pool_size=pool_size)
+        network['conv7']        = lasagne.layers.Conv2DLayer(network['max_pool3'], num_filters=192, filter_size=filter_size, pad='same')
+        network['conv8']        = lasagne.layers.Conv2DLayer(network['conv7'], num_filters=192, filter_size=filter_size, pad='same')
     
         ## Now Construct the image again!
         # Get the batch norm and reduce feature maps to fit previous layer
-        network['conv9'] = lasagne.layers.Conv2DLayer(network['conv8'], num_filters=96, filter_size=(1,1), pad='same')
-        network['batch_norm4'] = lasagne.layers.batch_norm(network['conv9'])
+        network['conv9']        = lasagne.layers.Conv2DLayer(network['conv8'], num_filters=96, filter_size=(1,1), pad='same')
+        network['batch_norm4']  = lasagne.layers.batch_norm(network['conv9'])
         # Upscale layer 3 to fit L2 size
-        network['Upscale1'] = lasagne.layers.Upscale2DLayer(network['batch_norm4'], scale_factor=pool_size)
+        network['Upscale1']     = lasagne.layers.Upscale2DLayer(network['batch_norm4'], scale_factor=pool_size)
 
         # Concate with L_3
-        network['concat1'] = lasagne.layers.concat([network['batch_norm3'], network['Upscale1']])
-        network['conv10'] = lasagne.layers.Conv2DLayer(network['concat1'], num_filters=96, filter_size=filter_size, pad='same')
-        network['conv11'] = lasagne.layers.Conv2DLayer(network['conv10'], num_filters=48, filter_size=filter_size, pad='same')
-        network['batch_norm5'] = lasagne.layers.batch_norm(network['conv11'])
+        network['concat1']      = lasagne.layers.concat([network['batch_norm3'], network['Upscale1']])
+        network['conv10']       = lasagne.layers.Conv2DLayer(network['concat1'], num_filters=96, filter_size=filter_size, pad='same')
+        network['conv11']       = lasagne.layers.Conv2DLayer(network['conv10'], num_filters=48, filter_size=filter_size, pad='same')
+        network['batch_norm5']  = lasagne.layers.batch_norm(network['conv11'])
         # Upscale L_3 to fit L_2 size
-        network['Upscale2'] = lasagne.layers.Upscale2DLayer(network['batch_norm5'], scale_factor=pool_size)
+        network['Upscale2']     = lasagne.layers.Upscale2DLayer(network['batch_norm5'], scale_factor=pool_size)
 
         # Concate with L_2
-        L_2 = lasagne.layers.concat([L_2, network['Upscale2']])
+        network['concat2']      = lasagne.layers.concat([network['batch_norm2'], network['Upscale2']])
         # Convolve L_2 to fit feature maps to L1
-        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=48, filter_size=filter_size, pad='same')
-        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=12, filter_size=filter_size, pad='same')
-        L_2 = lasagne.layers.batch_norm(L_2)
+        network['conv12']       = lasagne.layers.Conv2DLayer(network['concat2'], num_filters=48, filter_size=filter_size, pad='same')
+        network['conv13']       = lasagne.layers.Conv2DLayer(network['conv12'], num_filters=12, filter_size=filter_size, pad='same')
+        network['batch_norm6']  = lasagne.layers.batch_norm(network['conv13'])
         # Upscale L_2 to fit L_1 size
-        L_2 = lasagne.layers.Upscale2DLayer(L_2, scale_factor=pool_size)
+        network['Upscale3']     = lasagne.layers.Upscale2DLayer(network['batch_norm6'], scale_factor=pool_size)
     
         # Do the same for layer 1
-        L_1 = lasagne.layers.concat([L_1, L_2])
+        network['concat3']      = lasagne.layers.concat([network['batch_norm1'], network['Upscale3']])
         # Convolve L_1 to fit feature maps to L1
-        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=12, filter_size=filter_size, pad='same')
-        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=6, filter_size=filter_size, pad='same')
-        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=3, filter_size=filter_size, pad='same')
+        network['conv14']       = lasagne.layers.Conv2DLayer(network['concat3'], num_filters=12, filter_size=filter_size, pad='same')
+        network['conv15']       = lasagne.layers.Conv2DLayer(network['conv14'], num_filters=6, filter_size=filter_size, pad='same')
+        network['conv16']       = lasagne.layers.Conv2DLayer(network['conv15'], num_filters=3, filter_size=filter_size, pad='same')
     
 
         # Convolve L_1 to fit the desired output
-        L_out = lasagne.layers.Conv2DLayer(L_1, num_filters=2, filter_size=filter_size, pad='same', 
+        network['out'] = lasagne.layers.Conv2DLayer(network['conv16'], num_filters=2, filter_size=filter_size, pad='same', 
                                            nonlinearity=lasagne.nonlinearities.linear)
 
-        return L_out
+        return network
 
 
 

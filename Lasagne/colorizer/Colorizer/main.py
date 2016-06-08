@@ -13,30 +13,31 @@ import numpy as np
 from Colorizer import Colorizer
 from glob import glob
 import os
+import sys
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 5
+n_epoch = 2
 
 # Folder where the training superbatches are stored
-training_folder='fruit_training'
+training_folder='combination_training'
 # Folder where the validation superbatches are stored
-validation_folder='fruit_training' #fruit_validation'
+validation_folder='combination_validation' #fruit_validation'
 
 # The colorspace to run the NN in
-colorspace='YCbCr'
+colorspace='CIEL*a*b*'
 
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
-param_file = 'params_fruit_YCbCr_new_loss'
+param_file = None
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'params_fruit_YCbCr_new_loss_05'
+param_save_file = 'params_combination_CIELab_mapped'
 
 # error folder where the error files are stored
 error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'error_fruit_YCbCr_new_loss_05'
+error_file = 'error_combination_CIELab_mapped'
 
 
 ######################
@@ -159,7 +160,7 @@ while n_epoch > 0:
 # Now do untill the program closes:
 while True:
     
-    menu_options = ['Plot the erros', 'Evaluate random validation images']
+    menu_options = ['Plot the erros', 'Evaluate random validation images', 'Exit the application']
     choice = gen_menu(menu_options)
     if choice == 0:
         # Plot the errors
@@ -190,6 +191,14 @@ while True:
 
         except:
             print("Something went wrong...")
+    elif choice == 2:
+        print("Are you sure?")
+        menu_options = ['Yes', 'No']
+        sure = gen_menu(menu_options)
+        if sure == 0:
+            sys.exit()
+        
+        
 
         
 
@@ -207,17 +216,3 @@ while True:
 ## convert to PIL image
 #imagep = Image.fromarray(np.uint8(image*255),'YCbCr')
 #imagep.show()
-
-
-menu_options = ['Train network', 'Visualize output']
-choice = gen_menu(menu_options)
-
-if choice==0:
-    train_options = ['Train with the same settings', 'Provide new settings']
-    choice_train = gen_menu(train_options)
-    # Train the network
-    print('Training...')
-
-elif choice==1:
-    visualize_options = ['Plot the erros', 'Evaluate random validation images']
-    choice_visualize = gen_menu(visualize_options)

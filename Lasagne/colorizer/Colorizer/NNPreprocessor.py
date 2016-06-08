@@ -428,21 +428,28 @@ def remap_CIELab(image):
     """
 
     # Normalize image so that all layers are between 0 - 1 (this is to fit the hole rgb part of the LAB space in a unit-cube)
-    #image[:,:,0] /= 100.
-    #image[:,:,1] = (image[:,:,1] + 500.*(1-16./116.)) / (1000.*(1-16./116.))
-    #image[:,:,2] = (image[:,:,2] + 200*(1-16./116.)) / (400.*(1-16./116.))
+    # Max(L) = 99.6549222328
+    # Max(a) = 97.9408293554
+    # Max(b) = 94.1970679706
 
-    # L max ~ 100, L min ~ 0
-    # a max ~ 100, a min ~ -65
-    # b max ~ 95, b min ~ -105
-    #image[:,:,0] /= 100.
-    #image[:,:,1] = (image[:,:,1] + 125.) / 250.
-    #image[:,:,2] = (image[:,:,2] + 150.) / 300.
+    # Min(L) = 0.0
+    # Min(a) = -85.9266517489
+    # Min(b) = -107.536445411
     
-    # Keep aspectratio constant:
+    # White:
+    #  L = 1.00000000e+02 
+    #  a = -2.45493786e-03 ~ 0
+    #  b = 4.65342115e-03 ~ 0
+
+    # Black:
+    #  L = 0
+    #  a = 0
+    #  b = 0
+
+    # Keep aspectratio constant between a and b layers, so devide both a and b by 108, and recenter around 0.5:
     image[:,:,0] /= 100.
-    image[:,:,1] = (image[:,:,1] + 200*(1-16./116.)) / (400.*(1-16./116.)) # take the same subset as for the b values, so the colors wont be skewed
-    image[:,:,2] = (image[:,:,2] + 200*(1-16./116.)) / (400.*(1-16./116.)) # Normalize all b values
+    image[:,:,1] = (image[:,:,1] + 108.) / (2.*108) # take the same subset as for the b values, so the colors wont be skewed
+    image[:,:,2] = (image[:,:,2] + 108.) / (2.*108) # Normalize all b values
 
     return image
 
@@ -457,17 +464,9 @@ def unmap_CIELab(image):
     """
 
     # Inverse of function remap_CIELab
-    #image[:,:,0] *= 100.
-    #image[:,:,1] = image[:,:,1]*250. - 125.
-    #image[:,:,2] = image[:,:,2]*300. - 150.
-
-    #image[:,:,0] *= 100.
-    #image[:,:,1] = image[:,:,1] * (1000.*(1-16./116.)) - 500.*(1-16./116.)
-    #image[:,:,2] = image[:,:,2] * (400.*(1-16./116.))  - 200.*(1-16./116.) 
-
     image[:,:,0] *= 100.
-    image[:,:,1] = image[:,:,1] * (400.*(1-16./116.))  - 200.*(1-16./116.) 
-    image[:,:,2] = image[:,:,2] * (400.*(1-16./116.))  - 200.*(1-16./116.) 
+    image[:,:,1] = image[:,:,1] * (2.*108.)  - 108. 
+    image[:,:,2] = image[:,:,2] * (2.*108.)  - 108.
 
     return image
 

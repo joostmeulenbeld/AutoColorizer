@@ -73,8 +73,10 @@ print("CIELab")
 CIELab = color_conversion(image=RGB,colorspace='CIELab')
 # Get rid of the extra dimensions
 CIELab = np.squeeze(CIELab)
+
 CIELab = np.transpose(CIELab, (1,0))
 plot_colorspace(CIELab,RGB_colormap,'a','b','L',(1,2,0))
+
 
 print("CIEL*a*b*")
 CIELab = color_conversion(image=RGB,colorspace="CIEL*a*b*")
