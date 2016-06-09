@@ -28,13 +28,13 @@ print("Total amount of weights (fully connected excluded): {}".format(total))
 val[0] = np.mean(val[0], axis=1, keepdims=True)
 
 
-val_float64 = [layer.astype('float64') for layer in val]
+# val_float64 = [layer.astype('float64') for layer in val]
 
 
-print(val_float64[0].dtype)
+# print(val_float64[0].dtype)
 
 with open("vgg16_only_conv.pkl", 'wb') as f:
-    pickle.dump(val_float64, f)
+    pickle.dump(val, f)
 
 # for (i, kernel) in enumerate(val[0]):
 #     print("kernel: {} (index: {}), sum stddev: {}".format(i//2, i, np.mean(np.std(kernel, 0))/np.mean(kernel)))
