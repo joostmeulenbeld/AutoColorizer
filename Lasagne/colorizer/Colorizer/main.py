@@ -14,23 +14,24 @@ from Colorizer import Colorizer
 from glob import glob
 import os
 import sys
+import theano
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 2
+n_epoch = 0
 
 # Folder where the training superbatches are stored
-training_folder='combination_training'
+training_folder='landscape_training'
 # Folder where the validation superbatches are stored
-validation_folder='combination_validation' #fruit_validation'
+validation_folder='landscape_validation' #fruit_validation'
 
 # The colorspace to run the NN in
-colorspace='CIEL*a*b*'
+colorspace='YCbCr'
 
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
-param_file = 'params_combination_CIELab_mapped'
+param_file = 'params_landscape_YCbCr'
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
 param_save_file = 'params_combination_CIELab_mapped'
 
@@ -98,7 +99,7 @@ while n_epoch > 0:
     _, error = NNColorizer.train_NN(train_data.get_batch)
     train_error += error # Add to error
 
-    NNshow.print_progress("Progress of the training", time() - start_time_training, train_data.get_epochProgress)
+    NNshow.print_progress("Progress of the training", time() - start_time_training, train_data.get_epochProgress, error)
 
 
     if train_data.get_epoch_done:
@@ -122,7 +123,7 @@ while n_epoch > 0:
             _, error = NNColorizer.validate_NN(validation_data.get_batch)
             validation_error += error
 
-            NNshow.print_progress("Progress of the validation", time() - start_time_validation, validation_data.get_epochProgress)
+            NNshow.print_progress("Progress of the validation", time() - start_time_validation, validation_data.get_epochProgress,error)
 
         # New line in the console
         print("")
@@ -160,7 +161,7 @@ while n_epoch > 0:
 # Now do untill the program closes:
 while True:
     
-    menu_options = ['Plot the erros', 'Evaluate random validation images', 'Exit the application']
+    menu_options = ['Plot the erros', 'Evaluate random validation images', 'Plot a specific layer featuremap', 'Exit the application']
     choice = gen_menu(menu_options)
     if choice == 0:
         # Plot the errors
@@ -192,9 +193,22 @@ while True:
         except:
             print("Something went wrong...")
     elif choice == 2:
-        print("Are you sure?")
+        layer_names = NNColorizer.get_layer_names
+        layerid = gen_menu(layer_names, 'Which layer to show?')
+        layername = list(layer_names)[layerid]
+        print("-"*50)
+        # Now get a random image to pull through the network
+        image = validation_data.get_random_image(colorspace)
+
+        # Evaluate the layer:
+        output = NNColorizer.get_layer_output(image,layername)
+
+        # Visualize the featuremaps!
+        NNshow.plot_batch_layers(output)
+
+    elif choice == 3:
         menu_options = ['Yes', 'No']
-        sure = gen_menu(menu_options)
+        sure = gen_menu(menu_options,"Are you sure?")
         if sure == 0:
             sys.exit()
         

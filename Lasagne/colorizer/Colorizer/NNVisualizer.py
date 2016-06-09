@@ -10,6 +10,7 @@ from NNPreprocessor import unmap_CIELab, assert_colorspace
 from skimage import color
 from PIL import Image
 import matplotlib.pyplot as plot
+import matplotlib.gridspec as gridspec
 import os
 
 def array2img(array, colorspace):
@@ -43,11 +44,15 @@ def array2img(array, colorspace):
         image = color.hsv2rgb(image)
 
     # YCbCr is supported by the PIL Image pkg. so just change the mode that is passed
-    if not(colorspace == 'YCbCr'):
-        colorspace = 'RGB'
+    if colorspace == 'YCbCr':
+        # Convert to a PIL Image (Should be replaced by the scikit-image equivalent color.rgb2YCbCr in the future)
+        im = Image.fromarray( np.uint8(image*255.), mode='YCbCr' )
+        im = im.convert('RGB')
+        # Put back into a numpy array
+        image = np.array(im)/255.
 
     # Now the image is definitely in a supported colorspace
-    return Image.fromarray(np.uint8(image*255.),mode=colorspace)
+    return Image.fromarray(np.uint8(image*255.),mode='RGB')
 
 
 
@@ -68,6 +73,7 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
 
     # Create figure
     f, ax = plot.subplots(n_images*2,4)
+    f.subplots_adjust(hspace=0.025, wspace=0.025)
 
     # and loop over the images
     for index in range(0,n_images*2,2):
@@ -125,25 +131,27 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
     # Show the figures
     plot.show()
 
-def print_progress(string, elapsed_time, progress):
+def print_progress(string, elapsed_time, progress, error):
     """
     Print a fancy progress bar in the console
     INPUT:
             string: A string printed before the :
             elapsed_time: The elapsed time in seconds
             progress: The progress in percentage
+            error:  the error to show
     """
     n_bars = np.floor(progress/100*20).astype('int')
     remaining_time = {'total_seconds': np.floor( (elapsed_time / progress * 100) - elapsed_time).astype('int')}
     remaining_time['hour'] = np.floor(remaining_time['total_seconds'] / 3600).astype('int')
     remaining_time['minutes'] = np.floor( (remaining_time['total_seconds'] - 3600*remaining_time['hour']) / 60).astype('int')
     remaining_time['seconds'] = np.floor( (remaining_time['total_seconds'] - 3600*remaining_time['hour'] - 60*remaining_time['minutes'])).astype('int')
-    print("{}: {:3.1f}% |{}| Remaining time: {:0>2}:{:0>2}:{:0>2}                                \r".format(    string,
+    print("{}: {:3.1f}% |{}| Remaining time: {:0>2}:{:0>2}:{:0>2} | Current error: {:.1f}         \r".format(    string,
                                                                                                                 progress,
                                                                                                                 "#"*n_bars + " "*(20 - n_bars),
                                                                                                                 remaining_time['hour'],
                                                                                                                 remaining_time['minutes'],
-                                                                                                                remaining_time['seconds']),end="")
+                                                                                                                remaining_time['seconds'],
+                                                                                                                np.float32(error)),end="")
 
 
 def plot_errors(error):
@@ -157,6 +165,41 @@ def plot_errors(error):
     plot.xlabel('epoch')
     plot.ylabel('error')
     plot.legend()
+    plot.show()
+
+
+def plot_batch_layers(batch, cmap='gray'):
+    """This function plots all layers of a batch next to each other (in a ~square grid) in the provided colormap
+        (can be used to plot the intermediate featuremaps)
+    INPUT: 
+           batch: the input batch of shape=(batch_size, layers,image_x,image_y)
+           cmap: the colormap to make the plots in
+    """
+
+    # Determine the grid size
+    # Make it sort of square but prever a wider plot over a higher plot
+    batch_size, nlayers, image_x, image_y = batch.shape
+    w = np.ceil(np.sqrt(nlayers)).astype('int')
+    h = np.ceil(nlayers/w).astype('int')
+    # Make the grid
+    gs = gridspec.GridSpec(h,w)
+    # Remove the padding
+    gs.update(wspace=0.025, hspace=0.025)
+
+    # Make the figure
+    f = plot.figure(figsize=(h,w))
+
+    # Loop over the layers
+    for layer in range(nlayers):
+
+        # Create the subplot
+        ax = plot.subplot(gs[layer])
+        # Do not show the axis
+        ax.axis('off')
+        # Show this featuremap
+        ax.imshow(batch[0,layer,:,:], cmap=cmap)
+
+    # Done! now show the plot
     plot.show()
 
 ##### MENU FUNCTIONS #####
@@ -190,16 +233,18 @@ def get_int(validation_list=None):
 
     return user_int
 
-def gen_menu(menu_options):
+def gen_menu(menu_options, str=""):
     """ This function prints a menu with options to evaluate/train the NN 
     INPUT:
-            a list of options to be printed
+            menu_options: a list of options to be printed
+            str: A string printed before the options
     OUTPUT:
             The choice of the user
     """
 
     cls() # clear the console
     print('-'*50)
+    print(str)
     print('Choose one of the following:')
     for i, option in enumerate(menu_options):
         print("{}. {}".format(i, option))

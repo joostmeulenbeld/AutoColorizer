@@ -39,7 +39,10 @@ class Colorizer(object):
 
         # Create the neural network
         print("---Create the neural network")
-        self._network = self._NN2(self._input)
+        self._network = self._NN(self._input)
+
+        # Create an empty dict, that might be filled with functions to evaluate the intermediate layers
+        self._layer_function = {}
 
         # Set params if given
         if not(param_file is None):
@@ -54,12 +57,19 @@ class Colorizer(object):
         # Get the sum squared error per image
         print("---Define loss function")
         if (self._colorspace == 'CIEL*a*b*'):
-            loss_output = T.sgn(output-0.5)* 2**(abs(output-0.5)) 
-            loss_target = T.sgn(self._target-0.5)* 2**(abs(self._target-0.5)) 
-            loss = lasagne.objectives.squared_error(loss_output, loss_target) # shape = (batch_size, 2, image_x, image_y)
+            # OLD Loss function:
+            # Get the sum squared error per image
+            loss = lasagne.objectives.squared_error(output,self._target) # shape = (batch_size, 2, image_x, image_y)
             loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
             # And take the mean over the batch
             loss = loss.mean()
+
+            #loss_output = T.sgn(output-0.5)* 2**(abs(output-0.5)) 
+            #loss_target = T.sgn(self._target-0.5)* 2**(abs(self._target-0.5)) 
+            #loss = lasagne.objectives.squared_error(loss_output, loss_target) # shape = (batch_size, 2, image_x, image_y)
+            #loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
+            ## And take the mean over the batch
+            #loss = loss.mean()
         elif (self._colorspace == 'HSV'):
             ## CHANGE THIS, THE ERROR IS NOW SUMMED OVER THE BATCHES
             # Only on the first layer, the H layer compute the distance.
@@ -113,11 +123,11 @@ class Colorizer(object):
 
         # Create theano functions to be used in the functions
         print("---Create the theano functions")
-        print("\t---Create eval_fn")
+        print("--- ---Create eval_fn")
         self._eval_fn = theano.function([self._input],output)
-        print("\t---Create val_fn")
+        print("--- ---Create val_fn")
         self._val_fn = theano.function([self._input, self._target],[output, loss])
-        print("\t---Create train_fn")
+        print("--- ---Create train_fn")
         self._train_fn = theano.function([self._input, self._target],[output, loss], updates=updates)
 
 
@@ -177,21 +187,45 @@ class Colorizer(object):
         np.save(parameter_file,lasagne.layers.get_all_param_values(self._network['out']))
         print("Stored the parameters to file: {}".format(parameter_file))
 
-    def get_layer_output(self, layer_name):
+    def get_layer_output(self, batch, layer_name):
         """ Create a theano function that outputs the output of a specific layer specified by layer_name 
         INPUT:
+                batch: a batch to forward through the network
+                        can be either size=(batch_size,3,image_x,image_y), then the first layer will be used
+                        or size=(batch_size,1,image_x,image_y).
+                        In both cases only the first image is analysed.
                 layer_name: The name of the layer, the key in the dict as specified in the architecture definition 
         OUTPUT: 
-                the theano function, requiring the input of the NN and returning the output of that layer (whatever size it may be..)
+                The output of that layer (whatever size it may be..)
                
         """
-        # Check if the key exists
-        assert layer_name in self._network, "No such key in the NN architecture, given key: {}".format(layer_name)
+
+        # Check if the layer function already exists otherways create it
+        if not(layer_name in self._layer_function.keys()):
+            print("--- Creating the theano function")
+            # Function does not exist, create it
+            self._create_layer_output_function(layer_name)
+        
+        # Split the batch if needed
+        if batch.shape[1] == 3:
+            batch_input, _ = self._split_batch(batch)
+        elif batch.shape[1] == 1:
+            batch_input = batch
+        else:
+            raise IndexError("The batch size is not correct!")
+
+        # Evaluate the function
+        return self._layer_function[layer_name](batch_input)
 
 
-        output = lasagne.layers.get_output(self._network[layer_name])
+    @property
+    def get_layer_names(self):
+        """ Obtain all the layer names as specified in the architecture
+        OUTPUT:
+                A list of the layer names 
+        """
 
-        return theano.function([self._input],output)
+        return self._network.keys()
 
     ########## Private functions ##########
     def _split_batch(self, batch):
@@ -224,91 +258,23 @@ class Colorizer(object):
 
         return [batch_input, batch_target]
 
-    def _NN(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
-        """ 
-        This function defines the architecture of the Fruit colorizer network 
-   
+    def _create_layer_output_function(self, layer_name):
+        """ Create a theano function that outputs the output of a specific layer specified by layer_name 
+            This function will be added to the dict self._layer_function, that is callible by the function get_layer_output
         INPUT:
-                input_var: a theano.tensor.tensor4 (and after theano function creation the data of size(batch_size, 1, image_size[1], image_size[2])
-                image_size: the size of the images, a 2D tuple 
-                filter_size: The convolutional filter size, a 2D tuple (EVEN FILTER SIZE IS NOT SUPPORTED!)
-                pool_size: the max_pool filter size between layers (also the upscale factor!)
-        OUTPUT:
-                Last lasagne layer of the network
+                layer_name: The name of the layer, the key in the dict as specified in the architecture definition 
+               
         """
 
-        # First make the input layer, batch size=none so any batch size will be accepted!
-        # image size is 128x128
-        L_input = lasagne.layers.InputLayer(shape=(None, 1, 128, 128), input_var=input_var)
+        # Check if the key exists
+        assert layer_name in self._network, "No such key in the NN architecture, given key: {}".format(layer_name)
 
-        # Define the first layer
-        # Pad = same for keeping the dimensions equal to the input!
-        L_1 = lasagne.layers.Conv2DLayer(L_input, num_filters=3, filter_size=filter_size, pad='same')
-        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=12, filter_size=filter_size, pad='same')
-        # Take the batch norm
-        L_1 = lasagne.layers.batch_norm(L_1)
 
-        # Define the second layer
-        # Max pool on first layer
-        L_2 = lasagne.layers.MaxPool2DLayer(L_1, pool_size=pool_size)
-        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=48, filter_size=filter_size, pad='same')
-        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=48, filter_size=filter_size, pad='same')
-        # Take the batch norm
-        L_2 = lasagne.layers.batch_norm(L_2)
+        output = lasagne.layers.get_output(self._network[layer_name])
 
-        # Define the third layer
-        # Max pool on the second layer
-        L_3 = lasagne.layers.MaxPool2DLayer(L_2, pool_size=pool_size)
-        L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=96, filter_size=filter_size, pad='same')
-        L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=96, filter_size=filter_size, pad='same')
-        # Take the batch norm
-        L_3 = lasagne.layers.batch_norm(L_3)
+        self._layer_function[layer_name] = theano.function([self._input],output)
 
-        # Define the fourth layer
-        # Max pool on the second layer
-        L_4 = lasagne.layers.MaxPool2DLayer(L_3, pool_size=pool_size)
-        L_4 = lasagne.layers.Conv2DLayer(L_4, num_filters=192, filter_size=filter_size, pad='same')
-        L_4 = lasagne.layers.Conv2DLayer(L_4, num_filters=192, filter_size=filter_size, pad='same')
-    
-        ## Now Construct the image again!
-        # Get the batch norm and reduce feature maps to fit previous layer
-        L_4 = lasagne.layers.Conv2DLayer(L_4, num_filters=96, filter_size=(1,1), pad='same')
-        L_4 = lasagne.layers.batch_norm(L_4)
-        # Upscale layer 3 to fit L2 size
-        L_4 = lasagne.layers.Upscale2DLayer(L_4, scale_factor=pool_size)
-
-        # Concate with L_3
-        L_3 = lasagne.layers.concat([L_3, L_4])
-        L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=96, filter_size=filter_size, pad='same')
-        L_3 = lasagne.layers.Conv2DLayer(L_3, num_filters=48, filter_size=filter_size, pad='same')
-        L_3 = lasagne.layers.batch_norm(L_3)
-        # Upscale L_3 to fit L_2 size
-        L_3 = lasagne.layers.Upscale2DLayer(L_3, scale_factor=pool_size)
-
-        # Concate with L_2
-        L_2 = lasagne.layers.concat([L_2, L_3])
-        # Convolve L_2 to fit feature maps to L1
-        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=48, filter_size=filter_size, pad='same')
-        L_2 = lasagne.layers.Conv2DLayer(L_2, num_filters=12, filter_size=filter_size, pad='same')
-        L_2 = lasagne.layers.batch_norm(L_2)
-        # Upscale L_2 to fit L_1 size
-        L_2 = lasagne.layers.Upscale2DLayer(L_2, scale_factor=pool_size)
-    
-        # Do the same for layer 1
-        L_1 = lasagne.layers.concat([L_1, L_2])
-        # Convolve L_1 to fit feature maps to L1
-        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=12, filter_size=filter_size, pad='same')
-        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=6, filter_size=filter_size, pad='same')
-        L_1 = lasagne.layers.Conv2DLayer(L_1, num_filters=3, filter_size=filter_size, pad='same')
-    
-
-        # Convolve L_1 to fit the desired output
-        L_out = lasagne.layers.Conv2DLayer(L_1, num_filters=2, filter_size=filter_size, pad='same', 
-                                           nonlinearity=lasagne.nonlinearities.linear)
-
-        return L_out
-
-    def _NN2(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+    def _NN(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
         """ 
         This function defines the architecture of the Fruit colorizer network 
    
