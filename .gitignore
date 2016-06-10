@@ -13,6 +13,7 @@ AutoColorizer/images_npy/*
 AutoColorizer/*/*.npy
 getapikey.py
 AutoColorizer/*.db
+Lasagne/weights_analyzer/*.pkl
 
 # ignore the image folders!
 Lasagne/colorizer/Colorizer/flower_training/

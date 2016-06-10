@@ -25,6 +25,7 @@ training_folder='combination_training'
 # Folder where the validation superbatches are stored
 validation_folder='combination_validation' #fruit_validation'
 
+
 # The colorspace to run the NN in
 colorspace='CIEL*a*b*'
 
@@ -39,6 +40,8 @@ param_save_file = 'params_combination_CIELab_mapped'
 error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
 error_file = 'params_combination_CIELab_mapped'
+
+vgg16=True
 
 
 ######################
@@ -62,7 +65,7 @@ if not(param_file is None):
     param_file_loc=os.path.join(param_folder,param_file + ".npy")
 else:
     param_file_loc=None
-NNColorizer = Colorizer(colorspace=colorspace,param_file=param_file_loc)
+NNColorizer = Colorizer(colorspace=colorspace,param_file=param_file_loc, vgg16=vgg16)
 
 # keep track of time
 start_time_training = time()
@@ -186,7 +189,7 @@ while True:
                 NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
             else:
                 NN_images = np.append(NN_images,images[:,2,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),axis=1)
-
+            print(NN_images.shape)
             ## Show them :)
             NNshow.show_images_with_ab_channels(images,NN_images,colorspace)
 
@@ -230,3 +233,4 @@ while True:
 ## convert to PIL image
 #imagep = Image.fromarray(np.uint8(image*255),'YCbCr')
 #imagep.show()
+    
