@@ -18,29 +18,31 @@ import theano
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 0
+n_epoch = 1
 
 # Folder where the training superbatches are stored
-training_folder='combination_training' # 'landscape_training'
+training_folder='combination_training'
 # Folder where the validation superbatches are stored
-validation_folder='combination_validation' # 'landscape_validation' #fruit_validation'
+validation_folder='combination_validation' #fruit_validation'
+
 
 # The colorspace to run the NN in
-colorspace='YCbCr'
+colorspace='CIEL*a*b*'
 
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
-param_file = None #'params_landscape_YCbCr'
+param_file = None
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'params_combination_CIELab_mapped'
+param_save_file = 'params_combination_VGG16_CIELab_mapped'
 
 # error folder where the error files are stored
 error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'error_combination_CIELab_mapped'
+error_file = 'params_combination_VGG16_CIELab_mapped'
 
-vgg16=True
+# The architecture to use, can be 'VGG16' or 'NN'
+architecture='VGG16'
 
 
 ######################
@@ -64,7 +66,7 @@ if not(param_file is None):
     param_file_loc=os.path.join(param_folder,param_file + ".npy")
 else:
     param_file_loc=None
-NNColorizer = Colorizer(colorspace=colorspace,param_file=param_file_loc, vgg16=vgg16)
+NNColorizer = Colorizer(colorspace=colorspace,param_file=param_file_loc, architecture=architecture)
 
 # keep track of time
 start_time_training = time()
