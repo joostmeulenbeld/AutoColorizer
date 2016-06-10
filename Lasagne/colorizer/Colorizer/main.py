@@ -190,7 +190,6 @@ while True:
                 NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
             else:
                 NN_images = np.append(NN_images,images[:,2,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),axis=1)
-            print(NN_images.shape)
             ## Show them :)
             NNshow.show_images_with_ab_channels(images,NN_images,colorspace)
 

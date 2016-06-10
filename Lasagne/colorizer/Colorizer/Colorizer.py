@@ -140,6 +140,8 @@ class Colorizer(object):
         print("--- ---Create train_fn")
         self._train_fn = theano.function([self._input, self._target],[output, loss], updates=updates)
 
+        # Create an empty dict to store the layer functions in created by 
+        self._layer_function = {}
 
         print("Initialized the network")
 
