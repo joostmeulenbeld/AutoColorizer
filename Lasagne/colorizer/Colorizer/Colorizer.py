@@ -17,7 +17,7 @@ from NNPreprocessor import assert_colorspace
 class Colorizer(object):
     """This class defines the neural network and functions to colorize images"""
 
-    def __init__(self, colorspace, param_file=None, vgg16=False):
+    def __init__(self, colorspace, param_file=None, architecture='NN'):
         """ 
         INPUT:
                 colorspace: the colorspace that the NN will use;
@@ -28,7 +28,9 @@ class Colorizer(object):
                         'HSV' for HSV
                 param_file: the location of the file where all the trained parameters of the network are stored
                             i.e.: 'parameters.npy' or None for random initialization
-                vgg16: use the weights and layers of the VGG16 network as initialization
+                architecture: The network architecture to use;
+                                'VGG16': use the weights and layers of the VGG16 network as initialization
+                                'NN': use with random initialisation as the first network design
         """
 
         # Create the network here and all the theano functions
@@ -44,10 +46,12 @@ class Colorizer(object):
         # Create the neural network
         print("---Create the neural network")
 
-        if vgg16:
+        if architecture=='VGG16':
             self._network = self._vgg16NN(self._input)
+        elif architecture=='NN':
+            self._network = self._NN(self._input)
         else:
-            self._network = self._NN2(self._input)
+            raise AttributeError("The provided architecture is unknown.")
 
 
         # Set params if given
