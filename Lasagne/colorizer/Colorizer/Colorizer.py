@@ -103,19 +103,19 @@ class Colorizer(object):
             loss = T.sum(Sdist) + T.sum(Hdist)
         elif (self._colorspace == 'YCbCr'):
             # OLD Loss function:
-            ## Get the sum squared error per image
-            #loss = lasagne.objectives.squared_error(output,target) # shape = (batch_size, 2, image_x, image_y)
-            #loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
-            ## And take the mean over the batch
-            #loss = loss.mean()
-
-            # New loss function
-            loss_output = T.sgn(output-0.5)* 2**(abs(output-0.5))
-            loss_target = T.sgn(self._target-0.5)* 2**(abs(self._target-0.5))
-            loss = lasagne.objectives.squared_error(loss_output, loss_target) # shape = (batch_size, 2, image_x, image_y)
+            # Get the sum squared error per image
+            loss = lasagne.objectives.squared_error(output,self._target) # shape = (batch_size, 2, image_x, image_y)
             loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
             # And take the mean over the batch
             loss = loss.mean()
+
+            ## New loss function
+            #loss_output = T.sgn(output-0.5)* 2**(abs(output-0.5))
+            #loss_target = T.sgn(self._target-0.5)* 2**(abs(self._target-0.5))
+            #loss = lasagne.objectives.squared_error(loss_output, loss_target) # shape = (batch_size, 2, image_x, image_y)
+            #loss = loss.sum(axis=[1,2,3]) # shape (batch_size, 1)
+            ## And take the mean over the batch
+            #loss = loss.mean()
         else:
             raise ValueError("Cannot handle this colorspace, can only process 'CIEL*a*b*', 'HSV' and 'YCbCr'")
 
@@ -374,14 +374,14 @@ class Colorizer(object):
         network['conv4_1'] = lasagne.layers.Conv2DLayer(network['pool3'], 512, 3, pad='same', flip_filters=False, W=a[14], b=a[15])
         network['conv4_2'] = lasagne.layers.Conv2DLayer(network['conv4_1'], 512, 3, pad='same', flip_filters=False, W=a[16], b=a[17])
         network['conv4_3'] = lasagne.layers.Conv2DLayer(network['conv4_2'], 512, 3, pad='same', flip_filters=False, W=a[18], b=a[19])
-        network['conv_final'] = network['conv4_3'] #in the reconstruct network, a batch norm is taken so it doesn't have to happen here
+        network['conv_final'] = lasagne.layers.Conv2DLayer(network['conv4_3'], num_filters=256, filter_size=(1,1), pad='same') #in the reconstruct network, a batch norm is taken so it doesn't have to happen here
         # network['pool4'] = lasagne.layers.PoolLayer(network['conv4_3'], 2)
         # 
         # network['conv5_1'] = lasagne.layers.ConvLayer(network['pool4'], 512, 3, pad='same', flip_filters=False)
         # network['conv5_2'] = lasagne.layers.ConvLayer(network['conv5_1'], 512, 3, pad='same', flip_filters=False)
         # network['conv5_3'] = lasagne.layers.ConvLayer(network['conv5_2'], 512, 3, pad='same', flip_filters=False)
         # network['pool5'] = lasagne.layers.PoolLayer(network['conv5_3'], 2)
-        return self._reconstructNN(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
+        return self._reconstructVGG16NN(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
 
 
     def _reconstructNN(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
@@ -421,3 +421,43 @@ class Colorizer(object):
         network['out'] = lasagne.layers.Conv2DLayer(network['re_conv8'], num_filters=2, filter_size=filter_size, pad='same', 
                                            nonlinearity=lasagne.nonlinearities.linear)
         return network
+
+    def _reconstructVGG16NN(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+        
+        ## Now Construct the image again!
+        # Get the batch norm and reduce feature maps to fit previous layer
+        network['re_batch_norm1']  = lasagne.layers.batch_norm(network['conv_final'])
+        # Upscale layer 3 to fit L2 size
+        network['re_Upscale1']     = lasagne.layers.Upscale2DLayer(network['re_batch_norm1'], scale_factor=pool_size)
+
+        # Concate with L_3
+        network['re_concat1']      = lasagne.layers.concat([network['batch_norm3'], network['re_Upscale1']])
+        network['re_conv2']       = lasagne.layers.Conv2DLayer(network['re_concat1'], num_filters=256, filter_size=filter_size, pad='same')
+        network['re_conv3']       = lasagne.layers.Conv2DLayer(network['re_conv2'], num_filters=128, filter_size=filter_size, pad='same')
+        network['re_batch_norm2']  = lasagne.layers.batch_norm(network['re_conv3'])
+        # Upscale L_3 to fit L_2 size
+        network['re_Upscale2']     = lasagne.layers.Upscale2DLayer(network['re_batch_norm2'], scale_factor=pool_size)
+
+        # Concate with L_2
+        network['re_concat2']      = lasagne.layers.concat([network['batch_norm2'], network['re_Upscale2']])
+        # Convolve L_2 to fit feature maps to L1
+        network['re_conv4']       = lasagne.layers.Conv2DLayer(network['re_concat2'], num_filters=128, filter_size=filter_size, pad='same')
+        network['re_conv5']       = lasagne.layers.Conv2DLayer(network['re_conv4'], num_filters=64, filter_size=filter_size, pad='same')
+        network['re_batch_norm3']  = lasagne.layers.batch_norm(network['re_conv5'])
+        # Upscale L_2 to fit L_1 size
+        network['re_Upscale3']     = lasagne.layers.Upscale2DLayer(network['re_batch_norm3'], scale_factor=pool_size)
+    
+        # Do the same for layer 1
+        network['re_concat3']      = lasagne.layers.concat([network['batch_norm1'], network['re_Upscale3']])
+        # Convolve L_1 to fit feature maps to L1
+        network['re_conv6']       = lasagne.layers.Conv2DLayer(network['re_concat3'], num_filters=64, filter_size=filter_size, pad='same')
+        network['re_conv7']       = lasagne.layers.Conv2DLayer(network['re_conv6'], num_filters=32, filter_size=filter_size, pad='same')
+        network['re_conv8']       = lasagne.layers.Conv2DLayer(network['re_conv7'], num_filters=16, filter_size=filter_size, pad='same')
+        network['re_conv9']       = lasagne.layers.Conv2DLayer(network['re_conv8'], num_filters=3, filter_size=filter_size, pad='same')
+    
+
+        # Convolve L_1 to fit the desired output
+        network['out'] = lasagne.layers.Conv2DLayer(network['re_conv9'], num_filters=2, filter_size=filter_size, pad='same', 
+                                           nonlinearity=lasagne.nonlinearities.linear)
+        return network
+

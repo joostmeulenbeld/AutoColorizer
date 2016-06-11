@@ -12,6 +12,7 @@ from PIL import Image
 import matplotlib.pyplot as plot
 import matplotlib.gridspec as gridspec
 import os
+from tabulate import tabulate
 
 def array2img(array, colorspace):
     """ 
@@ -167,6 +168,12 @@ def plot_errors(error):
     plot.legend()
     plot.show()
 
+def print_errors_table(error):
+    """This function prints the validation error and train error in a nice table to the console
+    INPUT:
+            error: the error log as saved in the error files
+    """
+    print(tabulate(error, headers=['Epoch:', 'Train error:', 'Validation error:']))
 
 def plot_batch_layers(batch, cmap='gray'):
     """This function plots all layers of a batch next to each other (in a ~square grid) in the provided colormap

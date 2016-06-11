@@ -14,32 +14,32 @@ from Colorizer import Colorizer
 from glob import glob
 import os
 import sys
-import theano
+
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
 n_epoch = 1
 
 # Folder where the training superbatches are stored
-training_folder='combination_training'
+training_folder='landscape_training'
 # Folder where the validation superbatches are stored
-validation_folder='combination_validation' #fruit_validation'
+validation_folder='landscape_validation' #fruit_validation'
 
 
 # The colorspace to run the NN in
-colorspace='CIEL*a*b*'
+colorspace='YCbCr'
 
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
 param_file = None
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'params_combination_VGG16_CIELab_mapped'
+param_save_file = 'params_landscape_VGG16_YCbCr'
 
 # error folder where the error files are stored
 error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'params_combination_VGG16_CIELab_mapped'
+error_file = 'errors_landscape_VGG16_YCbCr'
 
 # The architecture to use, can be 'VGG16' or 'NN'
 architecture='VGG16'
@@ -170,7 +170,9 @@ while True:
     if choice == 0:
         # Plot the errors
         if not(error_log is None):
+            NNshow.print_errors_table(error_log)
             NNshow.plot_errors(error_log)
+            
         else:
             print("No error file provided...")
             sleep(3) # Sleep for 3 seconds to show the error, then reprint the menu
