@@ -14,6 +14,7 @@ from multiprocessing import Pool
 from queue import Queue
 from time import time
 import random
+from labmeshtest import Colorbins
 from itertools import starmap
 
 from PIL import Image
@@ -22,7 +23,7 @@ from PIL import Image
 class NNPreprocessor(object):
     """This class preprocesses the batches previously generated"""    
 
-    def __init__(self, batch_size, folder, colorspace, random_superbatches=True, blur=False, randomize=True, workers=4, sigma=3):
+    def __init__(self, batch_size, folder, colorspace, random_superbatches=True, blur=False, randomize=True, workers=4, sigma=3, classification=True):
 
         """ 
         INPUT:
@@ -56,6 +57,8 @@ class NNPreprocessor(object):
         self._sigma = sigma
         self._epoch = -1
         self._epoch_done = False
+        self._colorbins = Colorbins(k=10,T=0.2)
+        self._classification = classification
         
 
         # Create queue for the batches
@@ -318,6 +321,12 @@ class NNPreprocessor(object):
         #p.close()
 
         processed_batches = map(self._process_batch, pool_list)
+        
+        if self._classification:
+            assert ( (self._colorspace == 'CIELab') ), \
+            "to use classification the colorspace must be CIELab"
+            
+            processed_batches = map(self._to_classification, processed_batches)
 
         for batch in processed_batches:
             self._batch_queue.put(batch)
@@ -331,6 +340,7 @@ class NNPreprocessor(object):
 
         # Get the shape of the batch (batch_size, 2, image_x, image_y)
         batch_shape = batch.shape
+        print(batch_shape)
         
 
         # Loop over the batch
@@ -347,6 +357,55 @@ class NNPreprocessor(object):
         # Cast to float32 
         batch = batch.astype('float32')
         return batch
+        
+    def _to_classification(self, batch):
+        """
+        OUTPUT
+            processed batch to classification. Final shape is [batch size, x, y, classes +1]
+            the final shape has as first element on 3rd axis the L values
+        """
+        
+        # Get the shape of the batch (batch_size, 2, image_x, image_y)
+        batch_shape = batch.shape
+        new_batch_shape=np.array([batch.shape[0],batch.shape[1],batch.shape[2],self._colorbins.numbins+1])
+        batch_new = np.zeros(new_batch_shape)
+        
+        # Loop over the batch
+        for index in range(batch_shape[0]):
+            print(index)
+            # Get an image from the batch and change axis directions to match normal specification (x, y, n_channels)
+            image = np.transpose(batch[index,:,:,:], [1,2,0])
+            #split the L layer and the ab layers
+            image_ab=image[:,:,1:3]
+            image_L=image[:,:,0]
+            #get the shape
+            image_shape = image_ab.shape
+            newimage_shape = np.array(image_shape)
+            #make new image shape 
+            newimage_shape[2] = self._colorbins.numbins+1
+            newimage=np.zeros(newimage_shape)
+            # Loop over the pixels
+            xcount=0
+            for x in image_ab:
+                #count the  x pixels
+                print(xcount)
+                xcount += 1
+                ycount = 0
+                for y in x:
+                    # count the y pixels
+                    ycount += 1
+                    newimage[xcount-1,ycount-1,1:]=self._colorbins.k_means(y)
+            
+            #put L layer as first element on 3rd axis
+            newimage[:,:,1]=image_L
+                
+            #new output is [batch size, x, y, numclasses]
+            batch_new[index,:,:,:] = newimage
+        
+        return batch_new
+                    
+                    
+            
 
     @staticmethod
     def _convert_colorspace(image,colorspace,blur=False, sigma=3):
@@ -485,3 +544,6 @@ def assert_colorspace(colorspace):
     # Check if colorspace is properly defined
     assert ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') or (colorspace == 'RGB') or (colorspace == 'YCbCr') or (colorspace == 'HSV') ), \
     "the colorspace must be 'CIELab' or 'CIEL*a*b*' or 'RGB' or YCbCr or 'HSV'" 
+    
+traindata=NNPreprocessor(batch_size=10,folder='fruit_training',colorspace='CIELab',random_superbatches=True,blur=False,randomize=True,workers=4,sigma=3,classification=True)
+traindata.get_batch
