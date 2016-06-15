@@ -18,7 +18,7 @@ import sys
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 7
+n_epoch = 3
 
 # Folder where the training superbatches are stored
 training_folder='landscape_training'
@@ -32,7 +32,7 @@ colorspace='CIEL*a*b*'
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
-param_file = None
+param_file = 'params_landscape_CIELab_new'
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
 param_save_file = 'params_landscape_CIELab_new'
 
