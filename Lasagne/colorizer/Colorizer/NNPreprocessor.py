@@ -371,8 +371,10 @@ class NNPreprocessor(object):
         
         # Loop over the batch
         for image_index in range(batch.shape[0]):
+            
             time1=time()
             batch_new[image_index,0,:,:] = batch[image_index,0,:,:]
+            t1=time()
             # Loop over the pixels
             for x in range(batch.shape[2]):
                 #loop over the x pixels
@@ -380,7 +382,7 @@ class NNPreprocessor(object):
                     # loop over the y pixels
                     batch_new[image_index,1:,x,y]=self._colorbins.k_means(batch[image_index,1:3,x,y])
             print(image_index)
-            print(time()-time1)
+            print("time 1st loop{}".format(time()-t1))
         
         return batch_new
                     
