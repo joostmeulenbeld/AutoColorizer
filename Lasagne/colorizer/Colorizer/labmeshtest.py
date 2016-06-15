@@ -28,6 +28,7 @@ class Colorbins(object):
         self.contour=self.get_contour()
         self.finalmesh=self.get_meshgrid()
         self.numbins=np.shape(self.finalmesh[:,0])[0]
+        self.targetvector=np.zeros([self.numbins],dtype='float32')
     
     def assert_colorspace(self,colorspace):
         """ Raise an error if the colorspace is not an allowed one 
@@ -169,23 +170,16 @@ class Colorbins(object):
         targetindices = np.argsort(dist)[0:self.k]
 #        print("4: {}".format(time()-t))
 
-        
-        target = dist[targetindices]
-#        print("5: {}".format(time()-t))
 
-        target = np.exp(-np.power(target, 2.) / (2 * np.power(self.sigma, 2.)))
+        target = np.exp(-np.power(dist[targetindices], 2.) / (2 * np.power(self.sigma, 2.)))
 #        print("6: {}".format(time()-t))
 
-        target = target/np.sum(target)
-#        print("7: {}".format(time()-t))
 
-        targetvector=np.zeros([self.numbins],dtype='float32')
-#        print("8: {}".format(time()-t))
 
-        targetvector[[targetindices]]=target
+        self.targetvector[[targetindices]]=target/np.sum(target)
 #        print("9: {}".format(time()-t))
 
-        return targetvector
+        return self.targetvector
         
             
         

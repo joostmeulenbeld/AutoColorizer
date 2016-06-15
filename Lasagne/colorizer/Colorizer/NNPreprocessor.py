@@ -361,8 +361,8 @@ class NNPreprocessor(object):
     def _to_classification(self, batch):
         """
         OUTPUT
-            processed batch to classification. Final shape is [batch size, x, y, classes +1]
-            the final shape has as first element on 3rd axis the L values
+            processed batch to classification. Final shape is [batch size, 1+classes, x, y]
+            the final shape has as first element on 2nd dimension the L values
         """
         
         # Get the shape of the batch (batch_size, 2, image_x, image_y)
@@ -371,6 +371,7 @@ class NNPreprocessor(object):
         
         # Loop over the batch
         for image_index in range(batch.shape[0]):
+            time1=time()
             batch_new[image_index,0,:,:] = batch[image_index,0,:,:]
             # Loop over the pixels
             for x in range(batch.shape[2]):
@@ -379,6 +380,7 @@ class NNPreprocessor(object):
                     # loop over the y pixels
                     batch_new[image_index,1:,x,y]=self._colorbins.k_means(batch[image_index,1:3,x,y])
             print(image_index)
+            print(time()-time1)
         
         return batch_new
                     
