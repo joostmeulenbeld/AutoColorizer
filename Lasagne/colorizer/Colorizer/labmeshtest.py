@@ -244,11 +244,9 @@ class Colorbins(object):
         
         
 
-finalmesh=Colorbins()
-finalmesh.plot_meshgrid()
-b=finalmesh.k_means([50,50])
-#print(b)
-#c=finalmesh.annealed_mean(b)
-
-
-
+if __name__ == "__main__":
+    finalmesh=Colorbins()
+    finalmesh.plot_meshgrid()
+    b=finalmesh.k_means([50,50])
+    #print(b)
+    #c=finalmesh.annealed_mean(b)
