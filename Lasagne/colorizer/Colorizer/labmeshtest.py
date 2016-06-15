@@ -166,7 +166,7 @@ class Colorbins(object):
 #        print("3: {}".format(time()-t))
 
         
-        targetindices = np.argsort(dist)[0:self.k]
+        targetindices = np.argpartition(dist, self.k)[0:self.k]
 #        print("4: {}".format(time()-t))
 
         
