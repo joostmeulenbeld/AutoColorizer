@@ -5,6 +5,7 @@ author: Joost Dorscheidt, written for the NN course IN4015 of the TUDelft
 
 """
 import numpy as np
+import numpy.matlib as matlib
 import matplotlib.pyplot as plot
 import matplotlib.path as path
 from scipy.spatial import ConvexHull
@@ -158,26 +159,32 @@ class Colorbins(object):
             OUTPUT:
                 the vector containing the target classifications
         """
-        dist = np.array([])
+        t = time()
         
-        start_time=time()
+
+        dist=np.linalg.norm(pixel-self.finalmesh,axis=1)
+#        print("3: {}".format(time()-t))
+
         
-        
-        for meshpoint in self.finalmesh:
-            dist=np.append([dist],[np.linalg.norm(pixel-meshpoint)])
-        
-        print(time()-start_time)
         targetindices = np.argsort(dist)[0:self.k]
-        
-        print(time()-start_time)
-        
+#        print("4: {}".format(time()-t))
+
         
         target = dist[targetindices]
+#        print("5: {}".format(time()-t))
+
         target = np.exp(-np.power(target, 2.) / (2 * np.power(self.sigma, 2.)))
-        target = target/sum(target)
+#        print("6: {}".format(time()-t))
+
+        target = target/np.sum(target)
+#        print("7: {}".format(time()-t))
+
         targetvector=np.zeros([self.numbins],dtype='float32')
+#        print("8: {}".format(time()-t))
+
         targetvector[[targetindices]]=target
-        print(time()-start_time)
+#        print("9: {}".format(time()-t))
+
         return targetvector
         
             
@@ -248,5 +255,5 @@ if __name__ == "__main__":
     finalmesh=Colorbins()
     finalmesh.plot_meshgrid()
     b=finalmesh.k_means([50,50])
-    #print(b)
+    print(b)
     #c=finalmesh.annealed_mean(b)

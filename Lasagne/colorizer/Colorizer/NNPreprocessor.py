@@ -338,7 +338,7 @@ class NNPreprocessor(object):
                 processed batch (gets settings as provided by the constructor)
         """
 
-        # Get the shape of the batch (batch_size, 2, image_x, image_y)
+        # Get the shape of the batch (batch_size, 3, image_x, image_y)
         batch_shape = batch.shape
         print(batch_shape)
         
@@ -366,41 +366,19 @@ class NNPreprocessor(object):
         """
         
         # Get the shape of the batch (batch_size, 2, image_x, image_y)
-        batch_shape = batch.shape
-        new_batch_shape=np.array([batch.shape[0],batch.shape[1],batch.shape[2],self._colorbins.numbins+1])
+        new_batch_shape=np.array([batch.shape[0],self._colorbins.numbins+1,batch.shape[2],batch.shape[3]])
         batch_new = np.zeros(new_batch_shape)
         
         # Loop over the batch
-        for index in range(batch_shape[0]):
-            print(index)
-            # Get an image from the batch and change axis directions to match normal specification (x, y, n_channels)
-            image = np.transpose(batch[index,:,:,:], [1,2,0])
-            #split the L layer and the ab layers
-            image_ab=image[:,:,1:3]
-            image_L=image[:,:,0]
-            #get the shape
-            image_shape = image_ab.shape
-            newimage_shape = np.array(image_shape)
-            #make new image shape 
-            newimage_shape[2] = self._colorbins.numbins+1
-            newimage=np.zeros(newimage_shape)
+        for image_index in range(batch.shape[0]):
+            batch_new[image_index,0,:,:] = batch[image_index,0,:,:]
             # Loop over the pixels
-            xcount=0
-            for x in image_ab:
-                #count the  x pixels
-                print(xcount)
-                xcount += 1
-                ycount = 0
-                for y in x:
-                    # count the y pixels
-                    ycount += 1
-                    newimage[xcount-1,ycount-1,1:]=self._colorbins.k_means(y)
-            
-            #put L layer as first element on 3rd axis
-            newimage[:,:,1]=image_L
-                
-            #new output is [batch size, x, y, numclasses]
-            batch_new[index,:,:,:] = newimage
+            for x in range(batch.shape[2]):
+                #loop over the x pixels
+                for y in range(batch.shape[3]):
+                    # loop over the y pixels
+                    batch_new[image_index,1:,x,y]=self._colorbins.k_means(batch[image_index,1:3,x,y])
+            print(image_index)
         
         return batch_new
                     
