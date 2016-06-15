@@ -21,28 +21,29 @@ import sys
 n_epoch = 3
 
 # Folder where the training superbatches are stored
-training_folder='landscape_training'
+training_folder='fruit_training'
 # Folder where the validation superbatches are stored
-validation_folder='landscape_validation' #fruit_validation'
+validation_folder='fruit_training' #fruit_validation'
+
 
 
 # The colorspace to run the NN in
 colorspace='CIEL*a*b*'
 
 # Parameter folder where the parameter files are stored
-param_folder = 'params'
+param_folder = None
 # Parameter file to initialize the network with (do not add .npy), None for no file
 param_file = 'params_landscape_CIELab_new'
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'params_landscape_CIELab_new'
+param_save_file = None
 
 # error folder where the error files are stored
-error_folder = 'errors'
+error_folder = None
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'errors_landscape_CIELab_new'
+error_file = None
 
 # The architecture to use, can be 'VGG16' or 'NN'
-architecture='NN'
+architecture='VGG16'
 
 
 ######################
