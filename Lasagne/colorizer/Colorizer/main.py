@@ -21,9 +21,9 @@ import sys
 n_epoch = 7
 
 # Folder where the training superbatches are stored
-training_folder='landscape_training'
+training_folder='combination_training'
 # Folder where the validation superbatches are stored
-validation_folder='landscape_validation' #fruit_validation'
+validation_folder='combination_validation' #fruit_validation'
 
 
 # The colorspace to run the NN in
@@ -42,7 +42,7 @@ error_folder = 'errors'
 error_file = 'errors_landscape_CIELab_new'
 
 # The architecture to use, can be 'VGG16' or 'NN'
-architecture='NN'
+architecture='VGG16'
 
 
 ######################

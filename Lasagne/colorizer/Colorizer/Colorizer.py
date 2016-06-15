@@ -337,7 +337,7 @@ class Colorizer(object):
 
         return self._reconstructNN(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
 
-    def _vgg16NN(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+    def _vgg16NN(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2, trainable=False):
         # Build the convolutional layers according to the VGG16 structure
         # after every convolutional block, before maxpool, the batch norm is taken but not further used in the VGG16 network
         # This is because the reconstruct network requires normalized layers
@@ -358,24 +358,34 @@ class Colorizer(object):
         
         network['conv1_1'] = lasagne.layers.Conv2DLayer(network['input'], 64, 3, pad='same', flip_filters=False, W=a[0], b=a[1])
         network['conv1_2'] = lasagne.layers.Conv2DLayer(network['conv1_1'], 64, 3, pad='same', flip_filters=False, W=a[2], b=a[3])
-        network['batch_norm1'] = lasagne.layers.batch_norm(network['conv1_2']) #lasagne.layers.batch_norm(network['conv1_2'])
+        network['conv1_2_copy'] = lasagne.layers.Conv2DLayer(network['conv1_1'], 64, 3, pad='same', flip_filters=False, W=a[2], b=a[3])
+        network['batch_norm1'] = lasagne.layers.batch_norm(network['conv1_2_copy']) #lasagne.layers.batch_norm(network['conv1_2'])
         network['pool1'] = lasagne.layers.MaxPool2DLayer(network['conv1_2'], 2)
         
         network['conv2_1'] = lasagne.layers.Conv2DLayer(network['pool1'], 128, 3, pad='same', flip_filters=False, W=a[4], b=a[5])
         network['conv2_2'] = lasagne.layers.Conv2DLayer(network['conv2_1'], 128, 3, pad='same', flip_filters=False, W=a[6], b=a[7])
-        network['batch_norm2'] = lasagne.layers.batch_norm(network['conv2_2']) #lasagne.layers.batch_norm(network['conv2_2'])
+        network['conv2_2_copy'] = lasagne.layers.Conv2DLayer(network['conv2_1'], 128, 3, pad='same', flip_filters=False, W=a[6], b=a[7])
+        network['batch_norm2'] = lasagne.layers.batch_norm(network['conv2_2_copy']) #lasagne.layers.batch_norm(network['conv2_2'])
         network['pool2'] = lasagne.layers.MaxPool2DLayer(network['conv2_2'], 2)
         
         network['conv3_1'] = lasagne.layers.Conv2DLayer(network['pool2'], 256, 3, pad='same', flip_filters=False, W=a[8], b=a[9])
         network['conv3_2'] = lasagne.layers.Conv2DLayer(network['conv3_1'], 256, 3, pad='same', flip_filters=False, W=a[10], b=a[11])
         network['conv3_3'] = lasagne.layers.Conv2DLayer(network['conv3_2'], 256, 3, pad='same', flip_filters=False, W=a[12], b=a[13])
-        network['batch_norm3'] = lasagne.layers.batch_norm(network['conv3_3']) #lasagne.layers.batch_norm(network['conv3_3'])
+        network['conv3_3_copy'] = lasagne.layers.Conv2DLayer(network['conv3_2'], 256, 3, pad='same', flip_filters=False, W=a[12], b=a[13])
+        network['batch_norm3'] = lasagne.layers.batch_norm(network['conv3_3_copy']) #lasagne.layers.batch_norm(network['conv3_3'])
         network['pool3'] = lasagne.layers.MaxPool2DLayer(network['conv3_3'], 2)
         
         network['conv4_1'] = lasagne.layers.Conv2DLayer(network['pool3'], 512, 3, pad='same', flip_filters=False, W=a[14], b=a[15])
         network['conv4_2'] = lasagne.layers.Conv2DLayer(network['conv4_1'], 512, 3, pad='same', flip_filters=False, W=a[16], b=a[17])
         network['conv4_3'] = lasagne.layers.Conv2DLayer(network['conv4_2'], 512, 3, pad='same', flip_filters=False, W=a[18], b=a[19])
         network['conv_final'] = lasagne.layers.Conv2DLayer(network['conv4_3'], num_filters=256, filter_size=(1,1), pad='same') #in the reconstruct network, a batch norm is taken so it doesn't have to happen here
+        
+        #Make all trainable parameters non-trainable
+        if not trainable:
+            for key in sorted(network):
+                for param in network[key].get_params(trainable=True):
+                    network[key].params[param].remove('trainable')
+                
         # network['pool4'] = lasagne.layers.PoolLayer(network['conv4_3'], 2)
         # 
         # network['conv5_1'] = lasagne.layers.ConvLayer(network['pool4'], 512, 3, pad='same', flip_filters=False)
@@ -461,4 +471,3 @@ class Colorizer(object):
         network['out'] = lasagne.layers.Conv2DLayer(network['re_conv9'], num_filters=2, filter_size=filter_size, pad='same', 
                                            nonlinearity=lasagne.nonlinearities.linear)
         return network
-
