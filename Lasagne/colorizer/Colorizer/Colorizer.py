@@ -218,6 +218,7 @@ class Colorizer(object):
             # Function does not exist, create it
             self._create_layer_output_function(layer_name)
         
+        print("--- Evaluate the NN until layer {}".format(layer_name))
         # Split the batch if needed
         if batch.shape[1] == 3:
             batch_input, _ = self._split_batch(batch)

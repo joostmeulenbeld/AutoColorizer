@@ -18,7 +18,7 @@ import sys
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 1
+n_epoch = 7
 
 # Folder where the training superbatches are stored
 training_folder='landscape_training'
@@ -27,22 +27,22 @@ validation_folder='landscape_validation' #fruit_validation'
 
 
 # The colorspace to run the NN in
-colorspace='YCbCr'
+colorspace='CIEL*a*b*'
 
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
 param_file = None
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'params_landscape_VGG16_YCbCr'
+param_save_file = 'params_landscape_CIELab_new'
 
 # error folder where the error files are stored
 error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'errors_landscape_VGG16_YCbCr'
+error_file = 'errors_landscape_CIELab_new'
 
 # The architecture to use, can be 'VGG16' or 'NN'
-architecture='VGG16'
+architecture='NN'
 
 
 ######################
@@ -208,6 +208,7 @@ while True:
         # Evaluate the layer:
         output = NNColorizer.get_layer_output(image,layername)
 
+        print("--- Plot the output")
         # Visualize the featuremaps!
         NNshow.plot_batch_layers(output)
 
