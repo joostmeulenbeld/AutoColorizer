@@ -152,7 +152,7 @@ class Colorbins(object):
         
         return finalmesh
     
-    def k_means(self,pixel):
+    def k_means(self,pixels):
         """ This function gets the k-nearest neighbours of an input pixel to the colorspace meshgrid
             the distribution is smoothend with a gaussian
             INPUT:
@@ -160,31 +160,31 @@ class Colorbins(object):
             OUTPUT:
                 the vector containing the target classifications
         """
-        t = time()
+    
+        #dist=np.linalg.norm(pixel-self.finalmesh,axis=1)
+        #ypixels is the input, the shape is [numrows, 2]
+        #ypixels
         
+        dist = np.sum((pixels-self.finalmesh)**2,axis=1)      
+        #print("3: {}".format(time()-t))
 
-        dist=np.linalg.norm(pixel-self.finalmesh,axis=1)
-#        print("3: {}".format(time()-t))
-
-        
-        targetindices = np.argpartition(dist, self.k)[0:self.k]
-#        print("4: {}".format(time()-t))
+        #t=time()
+        #targetindices = np.argpartition(dist, self.k)[0:self.k]
+        targetindices = np.argsort(dist)[0:self.k]
+        #print("4: {}".format(time()-t))
 
 
-        target = np.exp(-np.power(dist[targetindices], 2.) / (2 * np.power(self.sigma, 2.)))
-#        print("6: {}".format(time()-t))
-
+        target = np.exp(-np.power(np.sqrt(dist[targetindices]), 2.) / (2 * np.power(self.sigma, 2.)))
+        #print("6: {}".format(time()-t))
 
 
         self.targetvector[[targetindices]]=target/np.sum(target)
-#        print("9: {}".format(time()-t))
-
+        #print("9: {}".format(time()-t))
+        
         return self.targetvector
         
             
-        
-        
-        
+
         
     def plot_meshgrid(self, xlabel='a', ylabel='b', axis=(0,1)):
         """ This function plots the final mesh grid in the colors specified by colors
@@ -247,7 +247,7 @@ class Colorbins(object):
 
 if __name__ == "__main__":
     finalmesh=Colorbins()
-    finalmesh.plot_meshgrid()
+    #finalmesh.plot_meshgrid()
     b=finalmesh.k_means([50,50])
     print(b)
     #c=finalmesh.annealed_mean(b)
