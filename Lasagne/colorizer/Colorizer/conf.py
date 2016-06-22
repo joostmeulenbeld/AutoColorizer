@@ -7,12 +7,12 @@ Created on Wed Jun 22 13:06:12 2016
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 1
+n_epoch = 10
 
 # Folder where the training superbatches are stored
-training_folder= 'fruit_training'
+training_folder= 'minisuperbatch'
 # Folder where the validation superbatches are stored
-validation_folder= 'fruit_training'
+validation_folder= 'minisuperbatch'
 
 # The colorspace to run the NN in
 colorspace= 'CIELab'

@@ -166,64 +166,64 @@ while True:
         print('How many images to show?')
         n_images = NNshow.get_int(range(25))
 
-        try:
-            # get random images from the validation set
-            images = validation_data.get_random_images(n_images,colorspace=colorspace)
-            NNinput_images = images
-            
-            if classification == True:
-                # convert images to colorbins
-                NNinput_images = validation_data._to_classification(images)
-    
-            # Run through the NN (validate to keep shape the same)
-            NN_images, _ = NNColorizer.validate_NN(NNinput_images)
-            # Append with Luminocity layer
-            if not(colorspace == 'HSV') and classification == False:
-                NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
-            elif classification == True:
-                #if classification is true the annealed mean operation first is performed on all the colorbin probability values to get one color for each pixel
-                # then the whole matrix gets reshaped in order to plot it as an image
-                NNinput_images = NNinput_images[:,1:,:,:].reshape(images.shape[0],-1,images.shape[2],images.shape[3])
-                NNinput_images = NNinput_images.transpose(0,2,3,1)
-                NNinput_images = NNinput_images.reshape(images.shape[0]*images.shape[2]*images.shape[3],-1)
-                input_image_ab=np.zeros((NN_images.shape[0],2))
-                image_ab=np.zeros((NN_images.shape[0],2))
-                print('applying annealed mean operation on image')
-                counter=0
-                #convert input image with annealed mean operation
-                for i in NNinput_images:
-                    input_image_ab[counter,:]=validation_data._colorbins.annealed_mean(i)
-                    counter += 1
-                
-                counter=0
-                
-                #convert NN image with annealed mean operation
-                for i in NN_images:
-                    image_ab[counter,:]=validation_data._colorbins.annealed_mean(i)
-                    counter += 1
-                
-                # reshape matrix to (batch size, x*y, classes)
-                NN_images = image_ab.reshape(images.shape[0],images.shape[3]*images.shape[2],-1)
-                NNinput_images = input_image_ab.reshape(images.shape[0],images.shape[3]*images.shape[2],-1)
-                # transpose, swap classes with x*y
-                NN_images = NN_images.transpose(0,2,1)
-                NNinput_images = NNinput_images.transpose(0,2,1)
-                # again reshape to split pixels
-                NN_images = NN_images.reshape(images.shape[0],-1,images.shape[2],images.shape[3])
-                NNinput_images = NNinput_images.reshape(images.shape[0],-1,images.shape[2],images.shape[3])
-                # now append second dimension with L layer
-                NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
-                NNinput_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NNinput_images,axis=1)
-                
-                
-                
-            else:
-                NN_images = np.append(NN_images,images[:,2,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),axis=1)
-            ## Show them :)
-            NNshow.show_images_with_ab_channels(NNinput_images,NN_images,colorspace,classification=classification)
+        #try:
+        # get random images from the validation set
+        images = validation_data.get_random_images(n_images,colorspace=colorspace)
+        NNinput_images = images
+        
+        if classification == True:
+            # convert images to colorbins
+            NNinput_images = validation_data._to_classification(images)
 
-        except:
-            print("Something went wrong...")
+        # Run through the NN (validate to keep shape the same)
+        NN_images, _ = NNColorizer.validate_NN(NNinput_images,histogram=train_data._colorbins.gethistogram())
+        # Append with Luminocity layer
+        if not(colorspace == 'HSV') and classification == False:
+            NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
+        elif classification == True:
+            #if classification is true the annealed mean operation first is performed on all the colorbin probability values to get one color for each pixel
+            # then the whole matrix gets reshaped in order to plot it as an image
+            NNinput_images = NNinput_images[:,1:,:,:].reshape(images.shape[0],-1,images.shape[2],images.shape[3])
+            NNinput_images = NNinput_images.transpose(0,2,3,1)
+            NNinput_images = NNinput_images.reshape(images.shape[0]*images.shape[2]*images.shape[3],-1)
+            input_image_ab=np.zeros((NN_images.shape[0],2))
+            image_ab=np.zeros((NN_images.shape[0],2))
+            print('applying annealed mean operation on image')
+            counter=0
+            #convert input image with annealed mean operation
+            for i in NNinput_images:
+                input_image_ab[counter,:]=validation_data._colorbins.annealed_mean(i)
+                counter += 1
+            
+            counter=0
+            
+            #convert NN image with annealed mean operation
+            for i in NN_images:
+                image_ab[counter,:]=validation_data._colorbins.annealed_mean(i)
+                counter += 1
+            
+            # reshape matrix to (batch size, x*y, classes)
+            NN_images = image_ab.reshape(images.shape[0],images.shape[3]*images.shape[2],-1)
+            NNinput_images = input_image_ab.reshape(images.shape[0],images.shape[3]*images.shape[2],-1)
+            # transpose, swap classes with x*y
+            NN_images = NN_images.transpose(0,2,1)
+            NNinput_images = NNinput_images.transpose(0,2,1)
+            # again reshape to split pixels
+            NN_images = NN_images.reshape(images.shape[0],-1,images.shape[2],images.shape[3])
+            NNinput_images = NNinput_images.reshape(images.shape[0],-1,images.shape[2],images.shape[3])
+            # now append second dimension with L layer
+            NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
+            NNinput_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NNinput_images,axis=1)
+            
+            
+            
+        else:
+            NN_images = np.append(NN_images,images[:,2,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),axis=1)
+        ## Show them :)
+        NNshow.show_images_with_ab_channels(NNinput_images,NN_images,colorspace,classification=classification)
+
+        #except:
+            #print("Something went wrong...")
     elif choice == 2:
         layer_names = NNColorizer.get_layer_names
         layerid = gen_menu(layer_names, 'Which layer to show?')
