@@ -188,11 +188,16 @@ class Colorbins(object):
             
         #put the calculated distribution in the class rebalancing distribution
         self._histogramcounter += 1
+        
+        # Create the histogram of the input pixel column
         histogram_column = np.sum(self.targetvector,axis=0)
         histogram_column /= np.sum(histogram_column)
+        
+        # Save the new histogram using equation mean_new = (count_old*mean_old)/count_new
         histogram_new = self._histogramcounter*self.histogram + histogram_column
         self.histogram = histogram_new / (self._histogramcounter+1)        
         
+        # Return the transposed vector since that format is required by the parent script
         return np.transpose(self.targetvector,(1,0))
         
             
