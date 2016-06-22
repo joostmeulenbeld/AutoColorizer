@@ -21,14 +21,12 @@ import sys
 n_epoch = 1
 
 # Folder where the training superbatches are stored
-training_folder='fruit_training'
+training_folder= 'fruit_training'
 # Folder where the validation superbatches are stored
-validation_folder='fruit_training' #fruit_validation'
-
-
+validation_folder= 'fruit_validation'
 
 # The colorspace to run the NN in
-colorspace='CIEL*a*b*'
+colorspace= 'YCbCr'
 
 classification=False
 
@@ -40,9 +38,9 @@ param_file = None
 param_save_file = 'params'
 
 # error folder where the error files are stored
-error_folder = None
+error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = None
+error_file = 'errors_fruit_YCbCr_NN_more_end_fmaps'
 
 # The architecture to use, can be 'VGG16' or 'NN' or 'zhangNN'
 architecture='NN'
@@ -51,7 +49,6 @@ if architecture== 'zhangNN':
     #set classification to True when classification network is selected
     classification = True
     colorspace = 'CIELab'
-    
 
 
 ######################

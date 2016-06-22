@@ -27,6 +27,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Colorizer_old.py" />
+    <Compile Include="labmeshtest.py" />
     <Compile Include="main.py">
       <SubType>Code</SubType>
     </Compile>
