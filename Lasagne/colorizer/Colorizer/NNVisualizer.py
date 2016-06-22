@@ -14,7 +14,7 @@ import matplotlib.gridspec as gridspec
 import os
 from tabulate import tabulate
 
-def array2img(array, colorspace):
+def array2img(array, colorspace, classification=False):
     """ 
     INPUT:
             array: Lab layers in an array of shape=(3, image_x, image_y)
@@ -36,6 +36,10 @@ def array2img(array, colorspace):
     if (colorspace == 'CIEL*a*b*'):
         # Convert to CIELab:
         image = unmap_CIELab(image)
+    
+    if classification == True:
+        # remap L layer 
+        image[:,:,0] *= 1
 
     if ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') ):
         # Convert to rgb:
@@ -57,7 +61,7 @@ def array2img(array, colorspace):
 
 
 
-def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
+def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace, classification=False):
     """ 
     INPUT:
             ORGbatch: batch of (original) images with shape=(batch_size, 3, image_x, image_y)
@@ -80,12 +84,12 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace):
     for index in range(0,n_images*2,2):
 
         # Get the image
-        ORG_img = array2img(ORGbatch[int(index/2),:,:,:],colorspace)
-        NN_img  = array2img(NNbatch[int(index/2),:,:,:],colorspace)
+        ORG_img = array2img(ORGbatch[int(index/2),:,:,:],colorspace, classification)
+        NN_img  = array2img(NNbatch[int(index/2),:,:,:],colorspace, classification)
 
         # Define the different channel ids to show
         # (gray, layer_1, layer_2)
-        if (colorspace == 'CIEL*a*b*') or (colorspace == 'YCbCr'):
+        if (colorspace == 'CIEL*a*b*') or (colorspace == 'YCbCr') or (classification == True):
             channels = (0,1,2)
         elif (colorspace == 'HSV'):
             channels = (2,0,1)

@@ -23,7 +23,7 @@ from PIL import Image
 class NNPreprocessor(object):
     """This class preprocesses the batches previously generated"""    
 
-    def __init__(self, batch_size, folder, colorspace, random_superbatches=True, blur=False, randomize=True, workers=4, sigma=3, classification=True):
+    def __init__(self, batch_size, folder, colorspace, random_superbatches=True, blur=False, randomize=True, workers=4, sigma=3, classification=False):
 
         """ 
         INPUT:
@@ -57,7 +57,7 @@ class NNPreprocessor(object):
         self._sigma = sigma
         self._epoch = -1
         self._epoch_done = False
-        self._colorbins = Colorbins(k=10,T=0.2)
+        self._colorbins = Colorbins(k=3,T=1, sigma=3, nbins=12)
         self._classification = classification
         
 
@@ -190,9 +190,11 @@ class NNPreprocessor(object):
 
         # Convert colorspace and blur if needed
         image = self._convert_colorspace(image,colorspace,blur,self._sigma)
+        
+        image = np.transpose(image, [2,0,1]).reshape(1,3,self._superbatch_shape[2],self._superbatch_shape[3]).astype('float32')
 
         # Transpose back to format required for the neural network
-        return np.transpose(image, [2,0,1]).reshape(1,3,self._superbatch_shape[2],self._superbatch_shape[3]).astype('float32')
+        return image
 
     def get_random_image(self, colorspace, blur=False):
         """ 
@@ -340,7 +342,6 @@ class NNPreprocessor(object):
 
         # Get the shape of the batch (batch_size, 3, image_x, image_y)
         batch_shape = batch.shape
-        print(batch_shape)
         
 
         # Loop over the batch
@@ -349,7 +350,7 @@ class NNPreprocessor(object):
             image = np.transpose(batch[index,:,:,:], [1,2,0])
 
             # Convert the image to the correct colorspace, and blur if needed
-            image = self._convert_colorspace(image,self._colorspace,self._blur, self._sigma)
+            image = self._convert_colorspace(image,self._colorspace,self._classification,self._blur, self._sigma)
 
             # Transpose back to format required for the neural network and save it in the original batch
             batch[index,:,:,:] = np.transpose(image, [2,0,1])
@@ -371,26 +372,19 @@ class NNPreprocessor(object):
         
         # Loop over the batch
         for image_index in range(batch.shape[0]):
-            
-            time1=time()
             batch_new[image_index,0,:,:] = batch[image_index,0,:,:]
-            t1=time()
             # Loop over the pixels
             for x in range(batch.shape[2]):
                 #loop over the x pixels
-                for y in range(batch.shape[3]):
-                    # loop over the y pixels
-                    batch_new[image_index,1:,x,y]=self._colorbins.k_means(batch[image_index,1:3,x,y])
-            print(image_index)
-            print("time 1st loop{}".format(time()-t1))
-        
-        return batch_new
+                batch_new[image_index,1:,x,:]=self._colorbins.k_means(np.transpose(batch[image_index,1:3,x,:],(1,0)))
+        print('one batch done')
+        return batch_new.astype('float32')
                     
                     
             
 
     @staticmethod
-    def _convert_colorspace(image,colorspace,blur=False, sigma=3):
+    def _convert_colorspace(image,colorspace,classification=False,blur=False, sigma=3):
         """ 
         INPUT:
                 image: The image to be converted to the specified colorspace, should have shape=(image_x,image_y,3)
@@ -424,6 +418,12 @@ class NNPreprocessor(object):
             # a is in [-431.034,  431.034] --> [-500*(1-16/116), 500*(1-16/116)]
             # b is in [-172.41379, 172.41379] --> [-200*(1-16/116), 200*(1-16/116)]
             image = color.rgb2lab(image)
+            
+        if classification == True:
+            # Normalise the L layer so it is between 0 and 1
+            image[:,:,0] /= 100
+            
+            
 
             
 
@@ -526,6 +526,7 @@ def assert_colorspace(colorspace):
     # Check if colorspace is properly defined
     assert ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') or (colorspace == 'RGB') or (colorspace == 'YCbCr') or (colorspace == 'HSV') ), \
     "the colorspace must be 'CIELab' or 'CIEL*a*b*' or 'RGB' or YCbCr or 'HSV'" 
-    
-traindata=NNPreprocessor(batch_size=10,folder='fruit_training',colorspace='CIELab',random_superbatches=True,blur=False,randomize=True,workers=4,sigma=3,classification=True)
-traindata.get_batch
+   
+if __name__ == "__main__":
+    traindata=NNPreprocessor(batch_size=10,folder='fruit_training',colorspace='CIELab',random_superbatches=True,blur=False,randomize=True,workers=4,sigma=3,classification=True)
+    traindata.get_batch

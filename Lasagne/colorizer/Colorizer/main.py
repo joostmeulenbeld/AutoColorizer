@@ -18,7 +18,7 @@ import sys
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 3
+n_epoch = 1
 
 # Folder where the training superbatches are stored
 training_folder='fruit_training'
@@ -30,20 +30,28 @@ validation_folder='fruit_training' #fruit_validation'
 # The colorspace to run the NN in
 colorspace='CIEL*a*b*'
 
+classification=False
+
 # Parameter folder where the parameter files are stored
-param_folder = None
+param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
-param_file = 'params_landscape_CIELab_new'
+param_file = None
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = None
+param_save_file = 'params'
 
 # error folder where the error files are stored
 error_folder = None
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
 error_file = None
 
-# The architecture to use, can be 'VGG16' or 'NN'
-architecture='VGG16'
+# The architecture to use, can be 'VGG16' or 'NN' or 'zhangNN'
+architecture='NN'
+
+if architecture== 'zhangNN':
+    #set classification to True when classification network is selected
+    classification = True
+    colorspace = 'CIELab'
+    
 
 
 ######################
@@ -59,15 +67,15 @@ architecture='VGG16'
 ##### Main #####
 
 # Load data
-train_data = NNPreprocessor(batch_size=10, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True)
-validation_data = NNPreprocessor(batch_size=10, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False)
+train_data = NNPreprocessor(batch_size=10, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, classification=classification)
+validation_data = NNPreprocessor(batch_size=10, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=classification)
 
 # Create network object
 if not(param_file is None):
     param_file_loc=os.path.join(param_folder,param_file + ".npy")
 else:
     param_file_loc=None
-NNColorizer = Colorizer(colorspace=colorspace,param_file=param_file_loc, architecture=architecture)
+NNColorizer = Colorizer(colorspace=colorspace,param_file=param_file_loc, architecture=architecture,classification=classification,numbins=train_data._colorbins.numbins)
 
 # keep track of time
 start_time_training = time()
@@ -185,16 +193,58 @@ while True:
         try:
             # get random images from the validation set
             images = validation_data.get_random_images(n_images,colorspace=colorspace)
-
+            NNinput_images = images
+            
+            if classification == True:
+                # convert images to colorbins
+                NNinput_images = validation_data._to_classification(images)
+    
             # Run through the NN (validate to keep shape the same)
-            NN_images, _ = NNColorizer.validate_NN(images)
+            NN_images, _ = NNColorizer.validate_NN(NNinput_images)
             # Append with Luminocity layer
-            if not(colorspace == 'HSV'):
+            if not(colorspace == 'HSV') and classification == False:
                 NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
+            elif classification == True:
+                #if classification is true the annealed mean operation first is performed on all the colorbin probability values to get one color for each pixel
+                # then the whole matrix gets reshaped in order to plot it as an image
+                NNinput_images = NNinput_images[:,1:,:,:].reshape(images.shape[0],-1,images.shape[2],images.shape[3])
+                NNinput_images = NNinput_images.transpose(0,2,3,1)
+                NNinput_images = NNinput_images.reshape(images.shape[0]*images.shape[2]*images.shape[3],-1)
+                input_image_ab=np.zeros((NN_images.shape[0],2))
+                image_ab=np.zeros((NN_images.shape[0],2))
+                print('applying annealed mean operation on image')
+                counter=0
+                #convert input image with annealed mean operation
+                for i in NNinput_images:
+                    input_image_ab[counter,:]=validation_data._colorbins.annealed_mean(i)
+                    counter += 1
+                
+                counter=0
+                
+                #convert NN image with annealed mean operation
+                for i in NN_images:
+                    image_ab[counter,:]=validation_data._colorbins.annealed_mean(i)
+                    counter += 1
+                
+                # reshape matrix to (batch size, x*y, classes)
+                NN_images = image_ab.reshape(images.shape[0],images.shape[3]*images.shape[2],-1)
+                NNinput_images = input_image_ab.reshape(images.shape[0],images.shape[3]*images.shape[2],-1)
+                # transpose, swap classes with x*y
+                NN_images = NN_images.transpose(0,2,1)
+                NNinput_images = NNinput_images.transpose(0,2,1)
+                # again reshape to split pixels
+                NN_images = NN_images.reshape(images.shape[0],-1,images.shape[2],images.shape[3])
+                NNinput_images = NNinput_images.reshape(images.shape[0],-1,images.shape[2],images.shape[3])
+                # now append second dimension with L layer
+                NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
+                NNinput_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NNinput_images,axis=1)
+                
+                
+                
             else:
                 NN_images = np.append(NN_images,images[:,2,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),axis=1)
             ## Show them :)
-            NNshow.show_images_with_ab_channels(images,NN_images,colorspace)
+            NNshow.show_images_with_ab_channels(NNinput_images,NN_images,colorspace,classification=classification)
 
         except:
             print("Something went wrong...")
@@ -207,7 +257,7 @@ while True:
         image = validation_data.get_random_image(colorspace)
 
         # Evaluate the layer:
-        output = NNColorizer.get_layer_output(image,layername)
+        output = NNColorizer.get_layer_output(image,layername,classification)
 
         print("--- Plot the output")
         # Visualize the featuremaps!
