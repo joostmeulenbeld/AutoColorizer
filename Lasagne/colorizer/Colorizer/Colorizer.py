@@ -129,7 +129,7 @@ class Colorizer(object):
             #cross entropy loss function: output of the network is [batch,classes,x,y]
             target_dimshuffled = self._target.dimshuffle((0,2,3,1))
             target_reshaped = target_dimshuffled.reshape((target_dimshuffled.shape[0]*self._x_pixel*self._x_pixel,self._numbins))
-            value_function = T.dot(target_reshaped, 1/self._histogram)
+            value_function = T.sum((target_reshaped * 1/self._histogram),axis = 1)
             
             loss = lasagne.objectives.categorical_crossentropy(output, target_reshaped)
             # Apply class rebalancing; take the mean
