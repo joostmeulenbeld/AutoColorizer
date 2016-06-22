@@ -46,6 +46,7 @@ class Colorizer(object):
 
         self._input = T.tensor4('input')
         self._target = T.tensor4('target') # shape=(batch_size,2,image_x,image_y)
+        self._histogram = T.row('histogram')
 
         # Create the neural network
         print("---Create the neural network")
@@ -128,6 +129,7 @@ class Colorizer(object):
             #cross entropy loss function: output of the network is [batch,classes,x,y]
             target_dimshuffled = self._target.dimshuffle((0,2,3,1))
             loss = lasagne.objectives.categorical_crossentropy(output,target_dimshuffled.reshape((target_dimshuffled.shape[0]*self._x_pixel*self._x_pixel,self._numbins)))
+            loss /= self._histogram            
             loss = T.mean(loss)
             
         else:
@@ -151,9 +153,9 @@ class Colorizer(object):
         print("--- ---Create eval_fn")
         self._eval_fn = theano.function([self._input],output)
         print("--- ---Create val_fn")
-        self._val_fn = theano.function([self._input, self._target],[output, loss])
+        self._val_fn = theano.function([self._input, self._target, self._histogram],[output, loss])
         print("--- ---Create train_fn")
-        self._train_fn = theano.function([self._input, self._target],[output, loss], updates=updates)
+        self._train_fn = theano.function([self._input, self._target, self._histogram],[output, loss], updates=updates)
 
         # Create an empty dict to store the layer functions in created by 
         self._layer_function = {}
@@ -174,7 +176,7 @@ class Colorizer(object):
         # evaluate the network
         return self._eval_fn(batch)
 
-    def validate_NN(self, batch):
+    def validate_NN(self, batch, histogram=None):
         """ 
         INPUT:
                 batch: The batch used to train the network, batch has shape=(batch_size, 3, image_x, image_y)
@@ -187,9 +189,9 @@ class Colorizer(object):
         batch_input, batch_target = self._split_batch(batch)
 
         # Train the network
-        return self._val_fn(batch_input, batch_target)
+        return self._val_fn(batch_input, batch_target, histogram)
 
-    def train_NN(self, batch):
+    def train_NN(self, batch, histogram=None):
         """ 
         INPUT:
                 batch: The batch used to train the network, batch has shape=(batch_size, 3, image_x, image_y)
@@ -202,7 +204,7 @@ class Colorizer(object):
         batch_input, batch_target = self._split_batch(batch)
 
         # Train the network
-        return self._train_fn(batch_input, batch_target)
+        return self._train_fn(batch_input, batch_target, histogram)
 
     def save_parameters(self, parameter_file):
         """

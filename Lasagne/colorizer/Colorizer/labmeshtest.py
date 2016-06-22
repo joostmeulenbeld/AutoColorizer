@@ -28,7 +28,8 @@ class Colorbins(object):
         self.numbins=np.shape(self.finalmesh[:,0])[0]
         self.targetvector=np.zeros([y_pixels,self.numbins])
         self.distanceindexed=np.zeros([y_pixels,self.k])
-        self.classrebalancing = np.zeros([1,self.numbins])
+        self.histogram = np.zeros([1,self.numbins])
+        self._histogramcounter = 0
     
     def assert_colorspace(self,colorspace):
         """ Raise an error if the colorspace is not an allowed one 
@@ -186,10 +187,11 @@ class Colorbins(object):
             self.targetvector[i,targetindices[i,:]] = target[i,:]/np.sum(target[i,:])
             
         #put the calculated distribution in the class rebalancing distribution
-        #print(self.targetvector.shape)
-        #self.classrebalancing = self.classrebalancing + np.sum(self.targetvector,axis=0)
-        #self.classrebalancing /= np.sum(self.classrebalancing)
-        
+        self._histogramcounter += 1
+        histogram_column = np.sum(self.targetvector,axis=0)
+        histogram_column /= np.sum(histogram_column)
+        histogram_new = self._histogramcounter*self.histogram + histogram_column
+        self.histogram = histogram_new / (self._histogramcounter+1)        
         
         return np.transpose(self.targetvector,(1,0))
         
