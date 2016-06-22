@@ -80,7 +80,7 @@ if n_epoch > 0:
     while True:  
 
         # Train one batch
-        _, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.histogram)
+        _, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.gethistogram())
         train_error += error # Add to error
 
         NNshow.print_progress("Progress of the training", time() - start_time_training, train_data.get_epochProgress, error)
@@ -104,7 +104,7 @@ if n_epoch > 0:
             # Determine the validation error
             while not(validation_data.get_epoch_done):
                 # validate the network
-                _, error = NNColorizer.validate_NN(validation_data.get_batch, histogram=train_data._colorbins.histogram)
+                _, error = NNColorizer.validate_NN(validation_data.get_batch, histogram=train_data._colorbins.gethistogram())
                 validation_error += error
 
                 NNshow.print_progress("Progress of the validation", time() - start_time_validation, validation_data.get_epochProgress,error)

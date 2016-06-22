@@ -14,7 +14,7 @@ from time import time
 
 class Colorbins(object):
     
-    def __init__(self, sigma = 1, k=8, T=0.2, grid_size=10, nbins=3 , y_pixels=128):
+    def __init__(self, sigma = 1, k=8, T=0.2, grid_size=10, nbins=3 , y_pixels=128, labda=0):
         
         self.grid_size = grid_size
         self.nbins = nbins
@@ -25,11 +25,21 @@ class Colorbins(object):
         self.T = T
         self.contour=self.get_contour()
         self.finalmesh=self.get_meshgrid()
+        # Amount of bins in the classification
         self.numbins=np.shape(self.finalmesh[:,0])[0]
         self.targetvector=np.zeros([y_pixels,self.numbins])
         self.distanceindexed=np.zeros([y_pixels,self.k])
-        self.histogram = np.zeros([1,self.numbins])
+        # Current best guess of the histogram
+        self._histogram = np.zeros([1,self.numbins])
+        # Current amount of pixel rows used for the best guess histogram self._histogram
         self._histogramcounter = 0
+        # Uniform distribution factor
+        self._labda = labda
+        assert self._labda != 0, print("Colorbins: labda can't be equal to 1! (otherwise you get division by zero)")
+        
+    def gethistogram(self):
+        return (1.-self._labda)*self._histogram + self._labda/self.numbins
+        
     
     def assert_colorspace(self,colorspace):
         """ Raise an error if the colorspace is not an allowed one 
@@ -194,8 +204,8 @@ class Colorbins(object):
         histogram_column /= np.sum(histogram_column)
         
         # Save the new histogram using equation mean_new = (count_old*mean_old)/count_new
-        histogram_new = self._histogramcounter*self.histogram + histogram_column
-        self.histogram = histogram_new / (self._histogramcounter+1)        
+        histogram_new = self._histogramcounter*self._histogram + histogram_column
+        self._histogram = histogram_new / (self._histogramcounter+1)        
         
         # Return the transposed vector since that format is required by the parent script
         return np.transpose(self.targetvector,(1,0))

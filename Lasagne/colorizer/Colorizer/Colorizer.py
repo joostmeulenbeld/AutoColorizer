@@ -129,10 +129,11 @@ class Colorizer(object):
             #cross entropy loss function: output of the network is [batch,classes,x,y]
             target_dimshuffled = self._target.dimshuffle((0,2,3,1))
             target_reshaped = target_dimshuffled.reshape((target_dimshuffled.shape[0]*self._x_pixel*self._x_pixel,self._numbins))
+            value_function = T.dot(target_reshaped, 1/self._histogram)
             
             loss = lasagne.objectives.categorical_crossentropy(output, target_reshaped)
             # Apply class rebalancing; take the mean
-            loss = T.mean(target_reshaped / self._histogram)
+            loss = T.mean(loss * value_function)
             
         else:
             raise ValueError("Cannot handle this colorspace, can only process 'CIEL*a*b*', 'HSV' and 'YCbCr'")
@@ -155,9 +156,9 @@ class Colorizer(object):
         print("--- ---Create eval_fn")
         self._eval_fn = theano.function([self._input],output)
         print("--- ---Create val_fn")
-        self._val_fn = theano.function([self._input, self._target],[output, loss])
+        self._val_fn = theano.function([self._input, self._target, self._histogram],[output, loss])
         print("--- ---Create train_fn")
-        self._train_fn = theano.function([self._input, self._target],[output, loss], updates=updates)
+        self._train_fn = theano.function([self._input, self._target, self._histogram],[output, loss], updates=updates)
 
         # Create an empty dict to store the layer functions in created by 
         self._layer_function = {}
@@ -191,7 +192,7 @@ class Colorizer(object):
         batch_input, batch_target = self._split_batch(batch)
 
         # Train the network
-        return self._val_fn(batch_input, batch_target)#, histogram.astype('float32'))
+        return self._val_fn(batch_input, batch_target, histogram.astype('float32'))
 
     def train_NN(self, batch, histogram=np.array([])):
         """ 
@@ -206,7 +207,7 @@ class Colorizer(object):
         batch_input, batch_target = self._split_batch(batch)
 
         # Train the network
-        return self._train_fn(batch_input, batch_target)#, histogram.astype('float32'))
+        return self._train_fn(batch_input, batch_target, histogram.astype('float32'))
 
     def save_parameters(self, parameter_file):
         """
