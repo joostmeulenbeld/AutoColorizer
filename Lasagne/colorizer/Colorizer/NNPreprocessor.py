@@ -55,7 +55,7 @@ class NNPreprocessor(object):
         self._sigma = sigma
         self._epoch = -1
         self._epoch_done = False
-        self._colorbins = Colorbins(k=3,T=1, sigma=3, nbins=5, labda=0.5)
+        self._colorbins = Colorbins(k=6,T=0.2, sigma=5, nbins=15, labda=0.5)
         self._classification = classification
         
 

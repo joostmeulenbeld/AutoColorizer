@@ -24,20 +24,18 @@ from conf import *
 
 
 
-if architecture== 'zhangNN':
+if architecture== 'zhangNN' or 'VGG16_concat_class' or 'VGG16_dilated_class':
     #set classification to True when classification network is selected
     classification = True
     colorspace = 'CIELab'
-
-
 
 ######################
 
 ##### Main #####
 
 # Load data
-train_data = NNPreprocessor(batch_size=10, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, classification=classification)
-validation_data = NNPreprocessor(batch_size=10, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=classification)
+train_data = NNPreprocessor(batch_size=1, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, classification=classification)
+validation_data = NNPreprocessor(batch_size=1, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=classification)
 
 # Create network object
 if not(param_file is None):
@@ -176,7 +174,7 @@ while True:
                 NNinput_images = validation_data._to_classification(images)
     
             # Run through the NN (validate to keep shape the same)
-            NN_images, _ = NNColorizer.validate_NN(NNinput_images)
+            NN_images, _ = NNColorizer.validate_NN(NNinput_images,histogram=train_data._colorbins.gethistogram())
             # Append with Luminocity layer
             if not(colorspace == 'HSV') and classification == False:
                 NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
