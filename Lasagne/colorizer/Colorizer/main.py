@@ -4,58 +4,29 @@ The main file to run, train and evaluate the Neural network
 author: Dawud Hage, written for the NN course IN4015 of the TUDelft
 
 """
+import os
+import sys
+from time import time, sleep
+from glob import glob
+
+import numpy as np
+
 
 from NNPreprocessor import NNPreprocessor
 import NNVisualizer as NNshow
 from NNVisualizer import gen_menu
-from time import time, sleep
-import numpy as np
 from Colorizer import Colorizer
-from glob import glob
-import os
-import sys
+
+# Import settings from conf.py
+from conf import *
 
 
-##### SETTINGS: #####
-# Number of epochs to train the network over
-n_epoch = 1
 
-# Folder where the training superbatches are stored
-training_folder= 'fruit_training'
-# Folder where the validation superbatches are stored
-validation_folder= 'fruit_validation'
-
-# The colorspace to run the NN in
-colorspace= 'YCbCr'
-
-classification=False
-
-# Parameter folder where the parameter files are stored
-param_folder = 'params'
-# Parameter file to initialize the network with (do not add .npy), None for no file
-param_file = None
-# Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'params'
-
-# error folder where the error files are stored
-error_folder = 'errors'
-# Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'errors_fruit_YCbCr_NN_more_end_fmaps'
-
-# The architecture to use, can be 'VGG16' or 'NN' or 'zhangNN'
-architecture='NN'
 
 if architecture== 'zhangNN':
     #set classification to True when classification network is selected
     classification = True
     colorspace = 'CIELab'
-
-
-######################
-
-##### Functions: #####
-
-
 
 
 

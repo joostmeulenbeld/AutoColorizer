@@ -14,7 +14,7 @@ from multiprocessing import Pool
 from queue import Queue
 from time import time
 import random
-#from labmeshtest import Colorbins
+from labmeshtest import Colorbins
 from itertools import starmap
 
 from PIL import Image
@@ -315,11 +315,11 @@ class NNPreprocessor(object):
 
         processed_batches = map(self._process_batch, pool_list)
         
-        #if self._classification:
-        #    assert ( (self._colorspace == 'CIELab') ), \
-        #    "to use classification the colorspace must be CIELab"
+        if self._classification:
+            assert ( (self._colorspace == 'CIELab') ), \
+            "to use classification the colorspace must be CIELab"
             
-        #    processed_batches = map(self._to_classification, processed_batches)
+            processed_batches = map(self._to_classification, processed_batches)
 
         for batch in processed_batches:
             self._batch_queue.put(batch)
@@ -350,16 +350,16 @@ class NNPreprocessor(object):
         batch = batch.astype('float32')
         return batch
         
-    #def _to_classification(self, batch):
-    #    """
-    #    OUTPUT
-    #        processed batch to classification. Final shape is [batch size, 1+classes, x, y]
-    #        the final shape has as first element on 2nd dimension the L values
-    #    """
+    def _to_classification(self, batch):
+        """
+        OUTPUT
+            processed batch to classification. Final shape is [batch size, 1+classes, x, y]
+            the final shape has as first element on 2nd dimension the L values
+        """
         
-    #    # Get the shape of the batch (batch_size, 2, image_x, image_y)
-    #    new_batch_shape=np.array([batch.shape[0],self._colorbins.numbins+1,batch.shape[2],batch.shape[3]])
-    #    batch_new = np.zeros(new_batch_shape)
+        # Get the shape of the batch (batch_size, 2, image_x, image_y)
+        new_batch_shape=np.array([batch.shape[0],self._colorbins.numbins+1,batch.shape[2],batch.shape[3]])
+        batch_new = np.zeros(new_batch_shape)
         
         # Loop over the batch
         for image_index in range(batch.shape[0]):
