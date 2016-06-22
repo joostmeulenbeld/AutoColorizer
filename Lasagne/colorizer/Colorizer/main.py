@@ -7,6 +7,7 @@ author: Dawud Hage, written for the NN course IN4015 of the TUDelft
 import os
 import sys
 from time import time, sleep
+from datetime import timedelta
 from glob import glob
 
 import numpy as np
@@ -47,6 +48,8 @@ NNColorizer = Colorizer(colorspace=colorspace,param_file=param_file_loc, archite
 
 # keep track of time
 start_time_training = time()
+complete_training_start_time = time()
+n_epoch_total = n_epoch
 
 # Keep track of the training error
 train_error = 0
@@ -72,67 +75,72 @@ else:
 
 # Now train the network
 print("---------------------------------------")
-while n_epoch > 0:
+if n_epoch > 0:
     
-    
+    while True:  
 
-    # Train one batch
-    _, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.histogram)
-    train_error += error # Add to error
+        # Train one batch
+        _, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.histogram)
+        train_error += error # Add to error
 
-    NNshow.print_progress("Progress of the training", time() - start_time_training, train_data.get_epochProgress, error)
+        NNshow.print_progress("Progress of the training", time() - start_time_training, train_data.get_epochProgress, error)
 
 
-    if train_data.get_epoch_done:
+        if train_data.get_epoch_done:
 
-        # New line in the console
-        print("")
+            # New line in the console
+            print("")
 
-        # Save the parameters!
-        if not(param_save_file is None):
-            NNColorizer.save_parameters(os.path.join(param_folder,param_save_file + '.npy'))
+            # Save the parameters!
+            if not(param_save_file is None):
+                NNColorizer.save_parameters(os.path.join(param_folder,param_save_file + '.npy'))
 
-        # Keep track of the validation error
-        validation_error = 0
+            # Keep track of the validation error
+            validation_error = 0
 
-        # reset time 
-        start_time_validation = time()
+            # reset time 
+            start_time_validation = time()
 
-        # Determine the validation error
-        while not(validation_data.get_epoch_done):
-            # validate the network
-            _, error = NNColorizer.validate_NN(validation_data.get_batch, histogram=train_data._colorbins.histogram)
-            validation_error += error
+            # Determine the validation error
+            while not(validation_data.get_epoch_done):
+                # validate the network
+                _, error = NNColorizer.validate_NN(validation_data.get_batch, histogram=train_data._colorbins.histogram)
+                validation_error += error
 
-            NNshow.print_progress("Progress of the validation", time() - start_time_validation, validation_data.get_epochProgress,error)
+                NNshow.print_progress("Progress of the validation", time() - start_time_validation, validation_data.get_epochProgress,error)
 
-        # New line in the console
-        print("")
+            # New line in the console
+            print("")
 
-        last_epoch += 1
-        # store error in the error_log
-        if not(error_log is None):
-                error_log = np.append(error_log, np.array([[last_epoch, train_error / train_data.get_n_batches , validation_error / validation_data.get_n_batches  ]]), axis=0)
-                # save the error_log
-                np.save(os.path.join(error_folder,error_file + '.npy'),error_log)
-                print("Stored the error values to the file: {}".format(error_file + '.npy'))
+            last_epoch += 1
+            # store error in the error_log
+            if not(error_log is None):
+                    error_log = np.append(error_log, np.array([[last_epoch, train_error / train_data.get_n_batches , validation_error / validation_data.get_n_batches  ]]), axis=0)
+                    # save the error_log
+                    np.save(os.path.join(error_folder,error_file + '.npy'),error_log)
+                    print("Stored the error values to the file: {}".format(error_file + '.npy'))
 
-        # print the results for this epoch:
-        print("Epoch {} of {} took {:.3f}s".format(last_epoch, start_epoch + n_epoch, time() - start_time_training))
-        print("The average train error is: {!s:}".format(train_error / train_data.get_n_batches ))
-        print("The average validation error: {!s:}".format(validation_error / validation_data.get_n_batches ))
-        print("---------------------------------------")
+            # print the results for this epoch:
+            print("Epoch {} of {} took {:.3f}s".format(
+                last_epoch, 
+                start_epoch + n_epoch, 
+                time() - start_time_training))
+                #str(timedelta(seconds=(time() - start_time_training)*(train_data.get_epoch+1-n_epoch)))))
+                
+            print("The average train error is: {!s:}".format(train_error / train_data.get_n_batches ))
+            print("The average validation error: {!s:}".format(validation_error / validation_data.get_n_batches ))
+            print("---------------------------------------")
 
-        # Reset train error
-        train_error = 0
+            # Reset train error
+            train_error = 0
 
-        # reset time 
-        start_time_training = time()
-        
+            # reset time 
+            start_time_training = time()
+            
 
-        if train_data.get_epoch + 1 is n_epoch:
-            # Done! 
-            break
+            if train_data.get_epoch + 1 is n_epoch:
+                # Done! 
+                break
 
 ##### Visualization ######
 # Done with training! Lets show some images
@@ -232,9 +240,9 @@ while True:
         NNshow.plot_batch_layers(output)
 
     elif choice == 3:
-        menu_options = ['Yes', 'No']
+        menu_options = reversed(['Yes', 'No'])
         sure = gen_menu(menu_options,"Are you sure?")
-        if sure == 0:
+        if sure == 1:
             sys.exit()
         
         

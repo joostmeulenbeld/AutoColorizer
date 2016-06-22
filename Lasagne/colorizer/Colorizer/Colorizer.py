@@ -128,9 +128,11 @@ class Colorizer(object):
         elif (self._classification == True):
             #cross entropy loss function: output of the network is [batch,classes,x,y]
             target_dimshuffled = self._target.dimshuffle((0,2,3,1))
-            loss = lasagne.objectives.categorical_crossentropy(output,target_dimshuffled.reshape((target_dimshuffled.shape[0]*self._x_pixel*self._x_pixel,self._numbins)))
-            loss /= self._histogram            
-            loss = T.mean(loss)
+            target_reshaped = target_dimshuffled.reshape((target_dimshuffled.shape[0]*self._x_pixel*self._x_pixel,self._numbins))
+            
+            loss = lasagne.objectives.categorical_crossentropy(output, target_reshaped)
+            # Apply class rebalancing; take the mean
+            loss = T.mean(target_reshaped / self._histogram)
             
         else:
             raise ValueError("Cannot handle this colorspace, can only process 'CIEL*a*b*', 'HSV' and 'YCbCr'")
@@ -153,9 +155,9 @@ class Colorizer(object):
         print("--- ---Create eval_fn")
         self._eval_fn = theano.function([self._input],output)
         print("--- ---Create val_fn")
-        self._val_fn = theano.function([self._input, self._target, self._histogram],[output, loss])
+        self._val_fn = theano.function([self._input, self._target],[output, loss])
         print("--- ---Create train_fn")
-        self._train_fn = theano.function([self._input, self._target, self._histogram],[output, loss], updates=updates)
+        self._train_fn = theano.function([self._input, self._target],[output, loss], updates=updates)
 
         # Create an empty dict to store the layer functions in created by 
         self._layer_function = {}
@@ -176,7 +178,7 @@ class Colorizer(object):
         # evaluate the network
         return self._eval_fn(batch)
 
-    def validate_NN(self, batch, histogram=None):
+    def validate_NN(self, batch, histogram=np.array([])):
         """ 
         INPUT:
                 batch: The batch used to train the network, batch has shape=(batch_size, 3, image_x, image_y)
@@ -189,9 +191,9 @@ class Colorizer(object):
         batch_input, batch_target = self._split_batch(batch)
 
         # Train the network
-        return self._val_fn(batch_input, batch_target, histogram)
+        return self._val_fn(batch_input, batch_target)#, histogram.astype('float32'))
 
-    def train_NN(self, batch, histogram=None):
+    def train_NN(self, batch, histogram=np.array([])):
         """ 
         INPUT:
                 batch: The batch used to train the network, batch has shape=(batch_size, 3, image_x, image_y)
@@ -204,7 +206,7 @@ class Colorizer(object):
         batch_input, batch_target = self._split_batch(batch)
 
         # Train the network
-        return self._train_fn(batch_input, batch_target, histogram)
+        return self._train_fn(batch_input, batch_target)#, histogram.astype('float32'))
 
     def save_parameters(self, parameter_file):
         """
@@ -255,10 +257,10 @@ class Colorizer(object):
     def get_layer_names(self):
         """ Obtain all the layer names as specified in the architecture
         OUTPUT:
-                A list of the layer names 
+                A list of the layer names, sorted alphabetically
         """
 
-        return self._network.keys()
+        return sorted(self._network.keys())
 
     ########## Private functions ##########
     def _split_batch(self, batch):
