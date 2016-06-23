@@ -18,12 +18,12 @@ import sys
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 3
+n_epoch = 7
 
 # Folder where the training superbatches are stored
-training_folder= 'fruit_training'
+training_folder= 'landscape_training'
 # Folder where the validation superbatches are stored
-validation_folder= 'fruit_validation'
+validation_folder= 'landscape_validation'
 
 # The colorspace to run the NN in
 colorspace= 'YCbCr'
@@ -31,14 +31,14 @@ colorspace= 'YCbCr'
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
-param_file = None
+param_file = 'params_landscape_YCbCr_NN_more_end_fmaps_5_sigma_blur'
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'params_fruit_YCbCr_NN_more_end_fmaps'
+param_save_file = 'params_landscape_YCbCr_NN_more_end_fmaps_5_sigma_blur'
 
 # error folder where the error files are stored
 error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'errors_fruit_YCbCr_NN_more_end_fmaps'
+error_file = 'errors_landscape_YCbCr_NN_more_end_fmaps_5_sigma_blur'
 
 # The architecture to use, can be 'VGG16' or 'NN' or 'NN_more_end_fmaps'
 architecture='NN_more_end_fmaps'
@@ -57,7 +57,7 @@ architecture='NN_more_end_fmaps'
 ##### Main #####
 
 # Load data
-train_data = NNPreprocessor(batch_size=10, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True)
+train_data = NNPreprocessor(batch_size=10, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, sigma=5)
 validation_data = NNPreprocessor(batch_size=10, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False)
 
 # Create network object
