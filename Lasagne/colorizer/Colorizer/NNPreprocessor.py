@@ -23,7 +23,7 @@ from PIL import Image
 class NNPreprocessor(object):
     """This class preprocesses the batches previously generated"""    
 
-    def __init__(self, batch_size, folder, colorspace, random_superbatches=True, blur=False, randomize=True, workers=4, sigma=3, classification=False):
+    def __init__(self, batch_size, folder, colorspace, random_superbatches=True, blur=False, randomize=True, sigma=3, classification=False, colorbins_k=6,colorbins_T=0.2, colorbins_sigma=5, colorbins_nbins=15, colorbins_labda=0.5, colorbins_gridsize=10):
         """ 
         INPUT:
                 batch_size: amount of images returned by get batch, (needed for preloading)
@@ -55,7 +55,7 @@ class NNPreprocessor(object):
         self._sigma = sigma
         self._epoch = -1
         self._epoch_done = False
-        self._colorbins = Colorbins(k=6,T=0.2, sigma=5, nbins=15, labda=0.5)
+        self._colorbins = Colorbins(k=colorbins_k,T=colorbins_T, grid_size=colorbins_gridsize, sigma=colorbins_sigma, nbins=colorbins_nbins, y_pixels=128, labda=colorbins_labda)
         self._classification = classification
         
 

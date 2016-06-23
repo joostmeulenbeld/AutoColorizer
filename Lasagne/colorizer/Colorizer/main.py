@@ -32,8 +32,8 @@ if architecture== 'zhangNN' or 'VGG16_concat_class' or 'VGG16_dilated_class':
 ##### Main #####
 
 # Load data
-train_data = NNPreprocessor(batch_size=1, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, classification=classification)
-validation_data = NNPreprocessor(batch_size=1, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=classification)
+train_data = NNPreprocessor(batch_size=1, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, classification=classification, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
+validation_data = NNPreprocessor(batch_size=1, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=classification, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
 
 # Create network object
 if not(param_file is None):

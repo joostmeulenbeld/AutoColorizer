@@ -1,4 +1,4 @@
-"""
+﻿"""
 This script is meant to discretize the lab colorspace. This is needed for classifying the colors into 
 discrete color bins.
 author: Joost Dorscheidt, written for the NN course IN4015 of the TUDelft
@@ -14,7 +14,7 @@ from time import time
 
 class Colorbins(object):
     
-    def __init__(self, sigma = 1, k=8, T=0.2, grid_size=10, nbins=3 , y_pixels=128, labda=0):
+    def __init__(self, sigma = 1, k=8, T=0.2, grid_size=10, nbins=3 , y_pixels=128, labda=0.5):
         
         self.grid_size = grid_size
         self.nbins = nbins
@@ -35,7 +35,8 @@ class Colorbins(object):
         self._histogramcounter = 0
         # Uniform distribution factor
         self._labda = labda
-        assert self._labda != 0, print("Colorbins: labda can't be equal to 1! (otherwise you get division by zero)")
+        assert self._labda != 0, print("Colorbins: labda can't be equal to 0! (otherwise you get division by zero)")
+        assert self._labda < 1, print("Colorbins: labda can't be bigger than 1!")
         
     def gethistogram(self):
         return (1.-self._labda)*self._histogram + self._labda/self.numbins
