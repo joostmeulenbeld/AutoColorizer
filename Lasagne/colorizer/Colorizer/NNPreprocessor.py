@@ -368,7 +368,6 @@ class NNPreprocessor(object):
             for x in range(batch.shape[2]):
                 #loop over the x pixels
                 batch_new[image_index,1:,x,:]=self._colorbins.k_means(np.transpose(batch[image_index,1:3,x,:],(1,0)))
-        print('one batch done')
         return batch_new.astype('float32')
 
                     
