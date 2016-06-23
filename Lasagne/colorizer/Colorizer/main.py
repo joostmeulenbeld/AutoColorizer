@@ -9,7 +9,6 @@ import sys
 from time import time, sleep
 from datetime import timedelta
 from glob import glob
-
 import numpy as np
 
 
@@ -21,21 +20,22 @@ from Colorizer import Colorizer
 # Import settings from conf.py
 from conf import *
 
+######################
 
-
-
-if architecture== 'zhangNN' or 'VGG16_concat_class' or 'VGG16_dilated_class':
+if architecture == "zhangNN" or architecture == "VGG16_concat_class" or architecture == "VGG16_dilated_class":
     #set classification to True when classification network is selected
     classification = True
     colorspace = 'CIELab'
 
-######################
+
 
 ##### Main #####
 
 # Load data
-train_data = NNPreprocessor(batch_size=10, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, classification=classification)
-validation_data = NNPreprocessor(batch_size=10, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=classification)
+
+train_data = NNPreprocessor(batch_size=1, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, classification=classification, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
+validation_data = NNPreprocessor(batch_size=1, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=classification, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
+
 
 # Create network object
 if not(param_file is None):
@@ -78,7 +78,10 @@ if n_epoch > 0:
     while True:  
 
         # Train one batch
-        _, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.gethistogram())
+        if classification:
+            _, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.gethistogram())
+        else:
+            _, error = NNColorizer.train_NN(train_data.get_batch)
         train_error += error # Add to error
 
         NNshow.print_progress("Progress of the training", time() - start_time_training, train_data.get_epochProgress, error)
@@ -102,7 +105,10 @@ if n_epoch > 0:
             # Determine the validation error
             while not(validation_data.get_epoch_done):
                 # validate the network
-                _, error = NNColorizer.validate_NN(validation_data.get_batch, histogram=train_data._colorbins.gethistogram())
+                if classification:
+                    _, error = NNColorizer.validate_NN(validation_data.get_batch, histogram=train_data._colorbins.gethistogram())
+                else:
+                    _, error = NNColorizer.validate_NN(validation_data.get_batch)
                 validation_error += error
 
                 NNshow.print_progress("Progress of the validation", time() - start_time_validation, validation_data.get_epochProgress,error)

@@ -160,9 +160,15 @@ class Colorizer(object):
         print("--- ---Create eval_fn")
         self._eval_fn = theano.function([self._input],output)
         print("--- ---Create val_fn")
-        self._val_fn = theano.function([self._input, self._target, self._histogram],[output, loss])
-        print("--- ---Create train_fn")
-        self._train_fn = theano.function([self._input, self._target, self._histogram],[output, loss], updates=updates)
+        if self._classification:
+            self._val_fn = theano.function([self._input, self._target, self._histogram],[output, loss])
+            print("--- ---Create train_fn")
+            self._train_fn = theano.function([self._input, self._target, self._histogram],[output, loss], updates=updates)
+        else:
+            self._val_fn = theano.function([self._input, self._target],[output, loss])
+            print("--- ---Create train_fn")
+            self._train_fn = theano.function([self._input, self._target],[output, loss], updates=updates)
+            
 
         # Create an empty dict to store the layer functions in created by 
         self._layer_function = {}
@@ -196,7 +202,10 @@ class Colorizer(object):
         batch_input, batch_target = self._split_batch(batch)
 
         # Train the network
-        return self._val_fn(batch_input, batch_target, histogram.astype('float32'))
+        if self._classification:
+            return self._val_fn(batch_input, batch_target, histogram.astype('float32'))
+        else:
+            return self._val_fn(batch_input, batch_target)
 
     def train_NN(self, batch, histogram=np.array([])):
         """ 
@@ -211,7 +220,10 @@ class Colorizer(object):
         batch_input, batch_target = self._split_batch(batch)
 
         # Train the network
-        return self._train_fn(batch_input, batch_target, histogram.astype('float32'))
+        if self._classification:
+            return self._train_fn(batch_input, batch_target, histogram.astype('float32'))
+        else:
+            return self._train_fn(batch_input, batch_target)
 
     def save_parameters(self, parameter_file):
         """
