@@ -12,11 +12,9 @@ from scipy.spatial import ConvexHull
 from skimage import color
 from time import time
 
-
-
 class Colorbins(object):
     
-    def __init__(self, sigma = 5, k=10, T=0.2, grid_size=10, nbins=20):
+    def __init__(self, sigma = 1, k=8, T=0.2, grid_size=10, nbins=3 , y_pixels=128, labda=0):
         
         self.grid_size = grid_size
         self.nbins = nbins
@@ -27,8 +25,21 @@ class Colorbins(object):
         self.T = T
         self.contour=self.get_contour()
         self.finalmesh=self.get_meshgrid()
+        # Amount of bins in the classification
         self.numbins=np.shape(self.finalmesh[:,0])[0]
-        self.targetvector=np.zeros([self.numbins],dtype='float32')
+        self.targetvector=np.zeros([y_pixels,self.numbins])
+        self.distanceindexed=np.zeros([y_pixels,self.k])
+        # Current best guess of the histogram
+        self._histogram = np.zeros([1,self.numbins])
+        # Current amount of pixel rows used for the best guess histogram self._histogram
+        self._histogramcounter = 0
+        # Uniform distribution factor
+        self._labda = labda
+        assert self._labda != 0, print("Colorbins: labda can't be equal to 1! (otherwise you get division by zero)")
+        
+    def gethistogram(self):
+        return (1.-self._labda)*self._histogram + self._labda/self.numbins
+        
     
     def assert_colorspace(self,colorspace):
         """ Raise an error if the colorspace is not an allowed one 
@@ -152,36 +163,52 @@ class Colorbins(object):
         
         return finalmesh
     
-    def k_means(self,pixels):
+    def k_means(self,ypixels):
         """ This function gets the k-nearest neighbours of an input pixel to the colorspace meshgrid
             the distribution is smoothend with a gaussian
             INPUT:
-                pixel: a double where the first element is the a value and the second element is the b value
+                ypixel: shape[nrows, 2(a,b)]
             OUTPUT:
-                the vector containing the target classifications
+                targetvector transpose: shape[nclasses, ypixels]
         """
     
         #dist=np.linalg.norm(pixel-self.finalmesh,axis=1)
         #ypixels is the input, the shape is [numrows, 2]
-        #ypixels
+        #replicate matri
+        #ypixels = np.tile(np.expand_dims(ypixels,axis=1), (1,self.numbins,1))
+        #newmesh = np.tile(self.finalmesh, (ypixels.shape[0],1,1))
         
-        dist = np.sum((pixels-self.finalmesh)**2,axis=1)      
-        #print("3: {}".format(time()-t))
-
-        #t=time()
-        #targetindices = np.argpartition(dist, self.k)[0:self.k]
-        targetindices = np.argsort(dist)[0:self.k]
-        #print("4: {}".format(time()-t))
-
-
-        target = np.exp(-np.power(np.sqrt(dist[targetindices]), 2.) / (2 * np.power(self.sigma, 2.)))
-        #print("6: {}".format(time()-t))
-
-
-        self.targetvector[[targetindices]]=target/np.sum(target)
-        #print("9: {}".format(time()-t))
+        finalmatrix=np.tile(np.expand_dims(ypixels,axis=1), (1,self.numbins,1))-np.tile(self.finalmesh, (ypixels.shape[0],1,1))
         
-        return self.targetvector
+        #calculate the distances
+        dist = np.sum((finalmatrix)**2,axis=2)      
+        
+        #get the indices of the k smallest distances
+        targetindices = np.argsort(dist)[:,0:self.k]
+        for i in range(targetindices.shape[0]):
+            self.distanceindexed[i,:] = np.array([dist[i,[targetindices[i,:]]]])
+            
+        #apply gaussian filter over the distances
+        target = np.exp(-np.power(np.sqrt(self.distanceindexed), 2.) / (2 * np.power(self.sigma, 2.)))
+        self.targetvector[:,:] = 0
+        
+        #assign the probabilites to the targetindices
+        for i in range(targetindices.shape[0]):
+            self.targetvector[i,targetindices[i,:]] = target[i,:]/np.sum(target[i,:])
+            
+        #put the calculated distribution in the class rebalancing distribution
+        self._histogramcounter += 1
+        
+        # Create the histogram of the input pixel column
+        histogram_column = np.sum(self.targetvector,axis=0)
+        histogram_column /= np.sum(histogram_column)
+        
+        # Save the new histogram using equation mean_new = (count_old*mean_old)/count_new
+        histogram_new = self._histogramcounter*self._histogram + histogram_column
+        self._histogram = histogram_new / (self._histogramcounter+1)        
+        
+        # Return the transposed vector since that format is required by the parent script
+        return np.transpose(self.targetvector,(1,0))
         
             
 
@@ -247,7 +274,11 @@ class Colorbins(object):
 
 if __name__ == "__main__":
     finalmesh=Colorbins()
-    #finalmesh.plot_meshgrid()
-    b=finalmesh.k_means([50,50])
-    print(b)
+    finalmesh.plot_meshgrid()
+    t1=time()
+    y=np.zeros([10,2])
+    print(finalmesh.numbins)
+    b=finalmesh.k_means(y)
+    print(time()-t1)
+    #print(b)
     #c=finalmesh.annealed_mean(b)
