@@ -24,12 +24,10 @@ from conf import *
 
 
 
-if architecture== 'zhangNN':
+if architecture== 'zhangNN' or 'VGG16_concat_class' or 'VGG16_dilated_class':
     #set classification to True when classification network is selected
     classification = True
     colorspace = 'CIELab'
-
-
 
 ######################
 
