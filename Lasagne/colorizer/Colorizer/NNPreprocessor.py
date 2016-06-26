@@ -7,12 +7,14 @@ author: Dawud Hage & Joost Meulenbeld, written for the NN course IN4015 of the T
 
 import numpy as np
 import os
+import sys
 from skimage import color
 from skimage.filters import gaussian
 
 from multiprocessing import Pool
 from queue import Queue
 from time import time
+import datetime
 import random
 from labmeshtest import Colorbins
 from itertools import starmap
@@ -55,7 +57,7 @@ class NNPreprocessor(object):
         self._sigma = sigma
         self._epoch = -1
         self._epoch_done = False
-        self._colorbins = Colorbins(k=colorbins_k,T=colorbins_T, grid_size=colorbins_gridsize, sigma=colorbins_sigma, nbins=colorbins_nbins, y_pixels=128, labda=colorbins_labda)
+        self._colorbins = Colorbins(k=colorbins_k,T=colorbins_T, grid_size=colorbins_gridsize, sigma=colorbins_sigma, nbins=colorbins_nbins, labda=colorbins_labda)
         self._classification = classification
         
 
@@ -74,6 +76,32 @@ class NNPreprocessor(object):
 
         self._n_superbatches = len(self._filenames)
         self._superbatch_shape = np.load(os.path.join(self._folder, self._filenames[0]) , mmap_mode='r').shape
+        
+        # If classification: load the look-up table (it's not needed otherwise)
+        if self._classification:
+            # LUT folder is called "LUT"
+            if not os.path.exists("LUT"):
+                os.makedirs("LUT")
+            
+            # The filename of the LUT is made up from the parameters used during creation s.t. you can't use the wrong LUT
+            savename = os.path.join("LUT", "bins_LUT_numbins_{}_k_{}_sigma_{}.npz".format(self._colorbins.numbins, self._colorbins.k, self._colorbins.sigma))
+            
+            if not os.path.isfile(savename):
+                print("LUT was not found on disk, filename should be {}".format(savename))
+                print("Now generating LUT...")
+                self.generate_LUT()
+                print("Done")
+                
+            a = np.load(savename)
+            
+            # Apparently, every time the LUT is saved, a different order is chosen for the two tables in the .npz folder, so load it dynamically
+            # dtype of the probabilities is float32, of the indices uint16, so the index can be chosen based on the dtype
+            if a[a.keys()[0]].dtype == np.float32:
+                index_prob = 0
+            else:
+                index_prob = 1
+            self.LUT_ind = a[a.keys()[1-index_prob]]
+            self.LUT_prob = a[a.keys()[index_prob]]
 
     @property
     def get_epoch(self):
@@ -287,7 +315,8 @@ class NNPreprocessor(object):
            
 
         # process next superbatch
-        self._process_superbatch(superbatch)
+        unprocessed_batch, class1, class2 = self._process_superbatch(superbatch)
+        return unprocessed_batch, class1, class2
 
 
     def _process_superbatch(self, superbatch):
@@ -313,13 +342,13 @@ class NNPreprocessor(object):
         if not(pool_list[-1].shape is pool_list[0].shape):
             del pool_list[-1]
 
-        processed_batches = map(self._process_batch, pool_list)
         
         if self._classification:
             assert ( (self._colorspace == 'CIELab') ), \
             "to use classification the colorspace must be CIELab"
-            
-            processed_batches = map(self._to_classification, processed_batches)
+            processed_batches = map(self._to_classification_LUT, pool_list)
+        else:
+            processed_batches = map(self._process_batch, pool_list)
 
         for batch in processed_batches:
             self._batch_queue.put(batch)
@@ -331,12 +360,9 @@ class NNPreprocessor(object):
                 processed batch (gets settings as provided by the constructor)
         """
 
-        # Get the shape of the batch (batch_size, 3, image_x, image_y)
-        batch_shape = batch.shape
-
-
+        # shape of the batch (batch_size, 3, image_x, image_y)
         # Loop over the batch
-        for index in range(batch_shape[0]):
+        for index in range(batch.shape[0]):
             # Get an image from the batch and change axis directions to match normal specification (x, y, n_channels)
             image = np.transpose(batch[index,:,:,:], [1,2,0])
 
@@ -370,10 +396,57 @@ class NNPreprocessor(object):
                 batch_new[image_index,1:,x,:]=self._colorbins.k_means(np.transpose(batch[image_index,1:3,x,:],(1,0)))
         return batch_new.astype('float32')
 
-                    
-                    
+    def _to_classification_LUT(self, unprocessed_batch):
+        """
+        INPUT
+            unprocessed batch containing RGB values
+        OUTPUT
+            processed batch to classification. Final shape is [batch size, 1+classes, x, y]
+            the final shape has as first element on 2nd dimension the L values
+            this function uses lookuptables instead of 
+        """
+        # Process the batch to obtain the L layers
+        processed_batch = self._process_batch(unprocessed_batch.copy())
+        
+        # Convert back to integer RGB values, such that they can be used as indices
+        unprocessed_batch = (unprocessed_batch*256).astype(np.uint8)
+        
+        # New batch shape extends the second dimension to have size (1+numbins), where the 1 is for the L layer
+        new_batch_shape=np.array([unprocessed_batch.shape[0],self._colorbins.numbins+1,unprocessed_batch.shape[2],unprocessed_batch.shape[3]])
+        batch_new = np.zeros(new_batch_shape, dtype=np.float32)
+        
+        # Fancy indexing; create an array [1, 1, 1, 1, 2, 2, 2, 2, 3, etc.] such that the indices can be used effectively (required if you don't want to convert the image pixel by pixel)
+        yindexarray = np.arange(batch_new.shape[2]).repeat(self._colorbins.k)
+        
+        # Loop over the images and convert every image to the required format
+        for image_index in range(unprocessed_batch.shape[0]):
             
+            # First copy the L layer
+            batch_new[image_index,0,:,:] = processed_batch[image_index,0,:,:]
+            
+            # Now loop over the image and convert it to the classes column by column
+            for column in range(unprocessed_batch.shape[2]):
+                # print(unprocessed_batch[image_index,0,column,:].shape ,unprocessed_batch[image_index,1,column,:].shape, , unprocessed_batch[image_index,2,column,:])
+                batch_new[image_index,self.LUT_ind[unprocessed_batch[image_index,0,column,:],unprocessed_batch[image_index,1,column,:], unprocessed_batch[image_index,2,column,:]].flatten()+1,column,yindexarray] = \
+                    self.LUT_prob[unprocessed_batch[image_index,0,column,:],unprocessed_batch[image_index,1,column,:], unprocessed_batch[image_index,2,column,:]].flatten()
 
+        return batch_new.astype(np.float32)
+            
+    def _compare_LUT(self, unprocessed_batch):
+        """ Function to compare time of calculating the classification classes on the fly or using the look-up table strategy"""
+        unprocessed_batch_copy = unprocessed_batch.copy()
+        unprocessed_batch_copy2 = unprocessed_batch.copy()
+        print("--------------------------------------------------------------------")
+        t = time()
+        class2 = self._to_classification_LUT(unprocessed_batch)
+        print(time()-t)        
+        processed_batch = self._process_batch(unprocessed_batch_copy)
+        t = time()
+        class1 = self._to_classification(processed_batch)
+        print(time()-t)
+        return unprocessed_batch_copy2, class1, class2
+        
+        
     @staticmethod
     def _convert_colorspace(image,colorspace,classification=False,blur=False, sigma=3):
         """ 
@@ -410,14 +483,10 @@ class NNPreprocessor(object):
             # b is in [-172.41379, 172.41379] --> [-200*(1-16/116), 200*(1-16/116)]
             image = color.rgb2lab(image)
             
-        if classification == True:
+        if classification:
             # Normalise the L layer so it is between 0 and 1
             image[:,:,0] /= 100
             
-            
-
-            
-
         # convert to CIEL*a*b
         if (colorspace == 'CIEL*a*b*'):
             image = remap_CIELab(image)
@@ -446,6 +515,50 @@ class NNPreprocessor(object):
             
 
         return image
+        
+    def generate_LUT(self, savename = None):
+        """ Generate a lookup table which maps RGB values to the mapped bins
+            It is automatically saved (unless otherwise specified) under
+            file "bins_LUT_nbins_$nbins$_k_$k$_sigma_$sigma$", where $nbins$, $k$ and $sigma$ are replaced
+            by the appropriate values
+            What is actually generated are two tables, containing the indices of the nonzero values in the
+            probability (target) matrix, and the probabilities at these associated locations in the table.
+        """
+        print("Generating LUT")
+        # First create a temporary colorbins instance
+        colorbins = Colorbins(k=self._colorbins.k,T=self._colorbins.T, grid_size=self._colorbins.grid_size, sigma=self._colorbins.sigma, nbins=self._colorbins.nbins, y_pixels=256, labda=self._colorbins._labda)
+        # LUT is numpy array with [R, G, B, bin] as size
+        LUT_prob = np.zeros([256, 256, 256, colorbins.k], dtype=np.float32)
+        LUT_ind = np.zeros([256, 256, 256, colorbins.k], dtype=np.uint16)
+        RGBarray = np.ones((256, 1, 3))
+        RGBarray[:,:,2] *= np.expand_dims(np.arange(256), axis=1)
+         
+        t = time()
+        for R in range(256):
+            if R != 0:
+                t_now = time()-t
+                t_remaining = (t_now/R*(256-R))
+                print("Now generating R: {}/255, remaining: {}".format(R, str(datetime.timedelta(seconds=np.floor(t_remaining)))))
+                
+            RGBarray[:,:,0].fill(R)
+            for G in range(256):
+                RGBarray[:,:,1].fill(G)
+
+                # Convert to CIELab
+                Labarray = self._convert_colorspace(RGBarray/255, 'CIELab')
+                # Calculate the bins that should fire for the given RGB values
+                bins = colorbins.k_means(Labarray[:,0,1:3], update_hist=False).transpose()
+                nonzerobins = np.nonzero(bins)
+                # Take the minimal size (uint8) to save space (and since RGB is 1 byte per subcolor anyway)
+                LUT_ind[R,G,:,:] = nonzerobins[1].reshape(256, colorbins.k).astype(np.uint8)
+                LUT_prob[R,G,:,:] = bins[nonzerobins].reshape(256, colorbins.k).astype(np.float32)
+
+        if savename is None:
+            savename = os.path.join("LUT", "bins_LUT_numbins_{}_k_{}_sigma_{}.npz".format(colorbins.numbins, colorbins.k, colorbins.sigma))
+
+        np.savez_compressed(savename, LUT_prob, LUT_ind)
+        return LUT_prob, LUT_ind
+               
 
 
 
@@ -484,8 +597,6 @@ def remap_CIELab(image):
     image[:,:,1] = (image[:,:,1] + 108.) / (2.*108) # take the same subset as for the b values, so the colors wont be skewed
     image[:,:,2] = (image[:,:,2] + 108.) / (2.*108) # Normalize all b values
 
-    return image
-
 def unmap_CIELab(image):
     """
     Inverse of remap_CIELab
@@ -517,7 +628,25 @@ def assert_colorspace(colorspace):
     # Check if colorspace is properly defined
     assert ( (colorspace == 'CIELab') or (colorspace == 'CIEL*a*b*') or (colorspace == 'RGB') or (colorspace == 'YCbCr') or (colorspace == 'HSV') ), \
     "the colorspace must be 'CIELab' or 'CIEL*a*b*' or 'RGB' or YCbCr or 'HSV'" 
-   
+    
+def create_LUT():
+    """Create a look-up table (a LUT is automatically created when an NNPreprocessor instance is made, no LUT is found and classification is set to True (LUT is required then))"""
+    traindata=NNPreprocessor(batch_size=10,folder='minisuperbatch',colorspace='CIELab',random_superbatches=True,blur=False,randomize=True,sigma=3,classification=True)
+    traindata.generate_LUT()
+    return traindata
+    
+def test_LUTconversion():
+    """test function to return an actual LUT conversion, which allows to inspect the result"""
+    print('')
+    traindata=NNPreprocessor(batch_size=10,folder='minisuperbatch',colorspace='CIELab',random_superbatches=True,blur=False,randomize=False,sigma=3,classification=True)
+    unprocessed_batch, class1, class2 = traindata._process_next_superbatch()
+    return unprocessed_batch, class1, class2
+
+def instantiate():
+    """Create an instance of the NNPreprocessor class (such that you don't need to fill in all arguments for testing)"""
+    print('')
+    return NNPreprocessor(batch_size=10,folder='minisuperbatch',colorspace='CIELab',random_superbatches=True,blur=False,randomize=False,sigma=3,classification=True)    
+
+
 if __name__ == "__main__":
-    traindata=NNPreprocessor(batch_size=10,folder='fruit_training',colorspace='CIELab',random_superbatches=True,blur=False,randomize=True,workers=4,sigma=3,classification=True)
-    traindata.get_batch
+    nnp = instantiate()

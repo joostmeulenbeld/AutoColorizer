@@ -14,9 +14,11 @@ from time import time
 
 class Colorbins(object):
     
-    def __init__(self, sigma = 1, k=8, T=0.2, grid_size=10, nbins=3 , y_pixels=128, labda=0.5):
+    def __init__(self, sigma = 1, k=8, T=0.2, grid_size=10, nbins=20 , y_pixels=128, labda=0.5):
         
         self.grid_size = grid_size
+        # WARNING: nbins is NOT the amount of bins that will be created! It is rather a measure of the distance
+        # between the bins in the ab color space
         self.nbins = nbins
         #k-nearest neihgbour parameters
         self.k = k
@@ -164,11 +166,12 @@ class Colorbins(object):
         
         return finalmesh
     
-    def k_means(self,ypixels):
+    def k_means(self,ypixels, update_hist=True):
         """ This function gets the k-nearest neighbours of an input pixel to the colorspace meshgrid
             the distribution is smoothend with a gaussian
             INPUT:
-                ypixel: shape[nrows, 2(a,b)]
+                ypixels: shape[nrows, 2(a,b)]
+                udpate_hist: update the estimated histogram or not
             OUTPUT:
                 targetvector transpose: shape[nclasses, ypixels]
         """
@@ -179,6 +182,10 @@ class Colorbins(object):
         #ypixels = np.tile(np.expand_dims(ypixels,axis=1), (1,self.numbins,1))
         #newmesh = np.tile(self.finalmesh, (ypixels.shape[0],1,1))
         
+        if ypixels.shape[0] != self.targetvector.shape[0]:
+            self.targetvector=np.zeros([ypixels.shape[0],self.numbins])
+            self.distanceindexed=np.zeros([ypixels.shape[0],self.k])
+        
         finalmatrix=np.tile(np.expand_dims(ypixels,axis=1), (1,self.numbins,1))-np.tile(self.finalmesh, (ypixels.shape[0],1,1))
         
         #calculate the distances
@@ -186,8 +193,9 @@ class Colorbins(object):
         
         #get the indices of the k smallest distances
         targetindices = np.argsort(dist)[:,0:self.k]
+
         for i in range(targetindices.shape[0]):
-            self.distanceindexed[i,:] = np.array([dist[i,[targetindices[i,:]]]])
+            self.distanceindexed[i,:] = np.array(dist[i,[targetindices[i,:]]])
             
         #apply gaussian filter over the distances
         target = np.exp(-np.power(np.sqrt(self.distanceindexed), 2.) / (2 * np.power(self.sigma, 2.)))
@@ -197,21 +205,21 @@ class Colorbins(object):
         for i in range(targetindices.shape[0]):
             self.targetvector[i,targetindices[i,:]] = target[i,:]/np.sum(target[i,:])
             
-        #put the calculated distribution in the class rebalancing distribution
-        self._histogramcounter += 1
-        
-        # Create the histogram of the input pixel column
-        histogram_column = np.sum(self.targetvector,axis=0)
-        histogram_column /= np.sum(histogram_column)
-        
-        # Save the new histogram using equation mean_new = (count_old*mean_old)/count_new
-        histogram_new = self._histogramcounter*self._histogram + histogram_column
-        self._histogram = histogram_new / (self._histogramcounter+1)        
+        if update_hist:
+            #put the calculated distribution in the class rebalancing distribution
+            self._histogramcounter += 1
+            
+            # Create the histogram of the input pixel column
+            histogram_column = np.sum(self.targetvector,axis=0)
+            histogram_column /= np.sum(histogram_column)
+            
+            # Save the new histogram using equation mean_new = (count_old*mean_old)/count_new
+            histogram_new = self._histogramcounter*self._histogram + histogram_column
+            self._histogram = histogram_new / (self._histogramcounter+1)        
         
         # Return the transposed vector since that format is required by the parent script
         return np.transpose(self.targetvector,(1,0))
-        
-            
+                    
 
         
     def plot_meshgrid(self, xlabel='a', ylabel='b', axis=(0,1)):
@@ -274,12 +282,12 @@ class Colorbins(object):
         
 
 if __name__ == "__main__":
-    finalmesh=Colorbins()
-    finalmesh.plot_meshgrid()
-    t1=time()
-    y=np.zeros([10,2])
-    print(finalmesh.numbins)
-    b=finalmesh.k_means(y)
-    print(time()-t1)
+    finalmesh=Colorbins(y_pixels=256)
+    # finalmesh.plot_meshgrid()
+    # t1=time()
+    # y=np.zeros([10,2])
+    # print(finalmesh.numbins)
+    # b=finalmesh.k_means(y)
+    # print(time()-t1)
     #print(b)
     #c=finalmesh.annealed_mean(b)

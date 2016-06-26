@@ -7,7 +7,8 @@ Created on Wed Jun 22 13:06:12 2016
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-n_epoch = 10
+
+n_epoch = 0
 
 # Folder where the training superbatches are stored
 training_folder= 'minisuperbatch'
@@ -15,7 +16,7 @@ training_folder= 'minisuperbatch'
 validation_folder= 'minisuperbatch'
 
 # The colorspace to run the NN in
-colorspace= 'CIELab'
+colorspace= 'CIEL*a*b*'
 
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
