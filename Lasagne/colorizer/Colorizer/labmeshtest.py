@@ -206,21 +206,22 @@ class Colorbins(object):
             self.targetvector[i,targetindices[i,:]] = target[i,:]/np.sum(target[i,:])
             
         if update_hist:
-            #put the calculated distribution in the class rebalancing distribution
-            self._histogramcounter += 1
-            
-            # Create the histogram of the input pixel column
-            histogram_column = np.sum(self.targetvector,axis=0)
-            histogram_column /= np.sum(histogram_column)
-            
-            # Save the new histogram using equation mean_new = (count_old*mean_old)/count_new
-            histogram_new = self._histogramcounter*self._histogram + histogram_column
-            self._histogram = histogram_new / (self._histogramcounter+1)        
+            self.update_histogram(self.targetvector)
         
         # Return the transposed vector since that format is required by the parent script
         return np.transpose(self.targetvector,(1,0))
                     
-
+    def update_histogram(self, targetvector):
+        #put the calculated distribution in the class rebalancing distribution
+        self._histogramcounter += 1
+        
+        # Create the histogram of the input pixel column
+        histogram_column = np.sum(targetvector,axis=0)
+        histogram_column /= np.sum(histogram_column)
+        
+        # Save the new histogram using equation mean_new = (count_old*mean_old)/count_new
+        histogram_new = self._histogramcounter*self._histogram + histogram_column
+        self._histogram = histogram_new / (self._histogramcounter+1)                
         
     def plot_meshgrid(self, xlabel='a', ylabel='b', axis=(0,1)):
         """ This function plots the final mesh grid in the colors specified by colors

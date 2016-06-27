@@ -59,6 +59,7 @@ class NNPreprocessor(object):
         self._epoch_done = False
         self._colorbins = Colorbins(k=colorbins_k,T=colorbins_T, grid_size=colorbins_gridsize, sigma=colorbins_sigma, nbins=colorbins_nbins, labda=colorbins_labda)
         self._classification = classification
+        self._update_histogram = True
         
 
         # Create queue for the batches
@@ -168,12 +169,11 @@ class NNPreprocessor(object):
         batch =  self._batch_queue.get()
 
         # Check if this was the last batch of the last superbatch
-        if self._batch_queue.empty() and self._superbatch_queue.empty():
-            # done with the epoch!
-            self._epoch_done = True
-        else: 
-            self._epoch_done = False
-
+        self._epoch_done = self._batch_queue.empty() and self._superbatch_queue.empty()
+        
+        # When the first epoch is done, updating of the histogram should stop
+        if self._epoch_done:
+            self._update_histogram = False
         # return next item in array
         return batch
 
@@ -392,7 +392,7 @@ class NNPreprocessor(object):
             # Loop over the pixels
             for x in range(batch.shape[2]):
                 #loop over the x pixels
-                batch_new[image_index,1:,x,:]=self._colorbins.k_means(np.transpose(batch[image_index,1:3,x,:],(1,0)))
+                batch_new[image_index,1:,x,:]=self._colorbins.k_means(np.transpose(batch[image_index,1:3,x,:],(1,0)), self._update_histogram)
         return batch_new.astype('float32')
 
     def _to_classification_LUT(self, unprocessed_batch):
@@ -408,7 +408,7 @@ class NNPreprocessor(object):
         processed_batch = self._process_batch(unprocessed_batch.copy())
         
         # Convert back to integer RGB values, such that they can be used as indices
-        unprocessed_batch = (unprocessed_batch*256).astype(np.uint8)
+        unprocessed_batch = (unprocessed_batch*255).astype(np.uint8)
         
         # New batch shape extends the second dimension to have size (1+numbins), where the 1 is for the L layer
         new_batch_shape=np.array([unprocessed_batch.shape[0],self._colorbins.numbins+1,unprocessed_batch.shape[2],unprocessed_batch.shape[3]])
@@ -428,6 +428,8 @@ class NNPreprocessor(object):
                 # print(unprocessed_batch[image_index,0,column,:].shape ,unprocessed_batch[image_index,1,column,:].shape, , unprocessed_batch[image_index,2,column,:])
                 batch_new[image_index,self.LUT_ind[unprocessed_batch[image_index,0,column,:],unprocessed_batch[image_index,1,column,:], unprocessed_batch[image_index,2,column,:]].flatten()+1,column,yindexarray] = \
                     self.LUT_prob[unprocessed_batch[image_index,0,column,:],unprocessed_batch[image_index,1,column,:], unprocessed_batch[image_index,2,column,:]].flatten()
+                if self._update_histogram:
+                    self._colorbins.update_histogram(batch_new[image_index,1:,column,:].transpose())
 
         return batch_new.astype(np.float32)
             
