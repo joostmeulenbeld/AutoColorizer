@@ -7,37 +7,36 @@ Created on Wed Jun 22 13:06:12 2016
 
 ##### SETTINGS: #####
 # Number of epochs to train the network over
-
-n_epoch = 0
+n_epoch = 15
 
 # Folder where the training superbatches are stored
-training_folder= 'minisuperbatch'
+training_folder= 'flower_training'
 # Folder where the validation superbatches are stored
-validation_folder= 'minisuperbatch'
+validation_folder= 'flower_validation'
 
 # The colorspace to run the NN in
-colorspace= 'CIEL*a*b*'
+colorspace= 'YCbCr'
 
 # Parameter folder where the parameter files are stored
 param_folder = 'params'
 # Parameter file to initialize the network with (do not add .npy), None for no file
 param_file = None
 # Parameter file to save the trained parameters to every epoch (do not add .npy), None for no file
-param_save_file = 'params_fruit_CIELab_classification_zhangNN_k6_T02_sigma5_nbins18_labda05'
+param_save_file = 'params_flower_YCbCr_NN_more_end_fmaps'
 
 # error folder where the error files are stored
 error_folder = 'errors'
 # Error file to append with the new training and validation errors (do not add .npy), None dont save
-error_file = 'errors_fruit_CIELab_classification_zhangNN_k6_T02_sigma5_nbins18_labda05'
+error_file = 'errors_flower_YCbCr_NN_more_end_fmaps'
 
-# The architecture to use, can be 'VGG16' or 'NN' or 'zhangNN'
-architecture='zhangNN'
+# The architecture to use, can be 'VGG16' or 'NN' or 'NN_more_end_fmaps' or 'zhangNN'
+architecture='NN_more_end_fmaps'
 
 # Blur radius
 sigma = 3;
 
 # Turn on classification
-classification=True
+classification=False
 
 # Colorbin settings:
 colorbins_k = 6 # k nearers neughbours
