@@ -79,7 +79,8 @@ if n_epoch > 0:
 
         # Train one batch
         if classification:
-            _, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.gethistogram())
+            output, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.gethistogram())
+            print(output)
         else:
             _, error = NNColorizer.train_NN(train_data.get_batch)
         train_error += error # Add to error
@@ -185,11 +186,14 @@ while True:
         if not(colorspace == 'HSV') and classification == False:
             NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
         elif classification == True:
+            # output is log probability so needs to be converted to probabilities again
             #if classification is true the annealed mean operation first is performed on all the colorbin probability values to get one color for each pixel
             # then the whole matrix gets reshaped in order to plot it as an image
             NNinput_images = NNinput_images[:,1:,:,:].reshape(images.shape[0],-1,images.shape[2],images.shape[3])
             NNinput_images = NNinput_images.transpose(0,2,3,1)
             NNinput_images = NNinput_images.reshape(images.shape[0]*images.shape[2]*images.shape[3],-1)
+            print(NNinput_images.shape)
+            NNinput_images = np.exp(NN_images)
             input_image_ab=np.zeros((NN_images.shape[0],2))
             image_ab=np.zeros((NN_images.shape[0],2))
             print('applying annealed mean operation on image')

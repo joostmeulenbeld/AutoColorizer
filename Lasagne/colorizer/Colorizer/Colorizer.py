@@ -11,6 +11,8 @@ import theano
 import theano.tensor as T
 import lasagne
 
+from Customsoftmax import logSoftmax as log_softmax
+
 from NNPreprocessor import assert_colorspace
 
 
@@ -135,7 +137,7 @@ class Colorizer(object):
             target_reshaped = target_dimshuffled.reshape((target_dimshuffled.shape[0]*self._x_pixel*self._x_pixel,self._numbins))
             value_function = T.sum((target_reshaped * 1/self._histogram),axis = 1)
             
-            loss = lasagne.objectives.categorical_crossentropy(output, target_reshaped)
+            loss = self.categorical_crossentropy_logdomain(output,target_reshaped)
             # Apply class rebalancing; take the mean
             loss = T.mean(loss * value_function)
             
@@ -174,6 +176,10 @@ class Colorizer(object):
         self._layer_function = {}
 
         print("Initialized the network")
+        
+    def categorical_crossentropy_logdomain(self,log_predictions, targets):
+        
+        return -T.sum(targets * log_predictions, axis=1)
 
     def evaluate_NN(self, batch):
         """ 
@@ -456,7 +462,7 @@ class Colorizer(object):
         network['out1'] = lasagne.layers.Conv2DLayer(network['re_concat2'], num_filters=self._numbins, filter_size=(1,1), pad='same', nonlinearity = None)
         network['outdimshuffled'] = lasagne.layers.DimshuffleLayer(network['out1'],(0,2,3,1))
         network['outreshaped'] = lasagne.layers.ReshapeLayer(network['outdimshuffled'],((input_var.shape[0]*self._x_pixel*self._x_pixel,self._numbins)))
-        network['out'] = lasagne.layers.NonlinearityLayer(network['outreshaped'],nonlinearity=lasagne.nonlinearities.softmax)
+        network['out'] = log_softmax(network['outreshaped'])
         
         return network
         
@@ -563,7 +569,7 @@ class Colorizer(object):
         network['out1'] = lasagne.layers.Conv2DLayer(network['re_conv7'], num_filters=self._numbins, filter_size=(1,1), pad='same', nonlinearity = None)
         network['outdimshuffled'] = lasagne.layers.DimshuffleLayer(network['out1'],(0,2,3,1))
         network['outreshaped'] = lasagne.layers.ReshapeLayer(network['outdimshuffled'],((input_var.shape[0]*self._x_pixel*self._x_pixel,self._numbins)))
-        network['out'] = lasagne.layers.NonlinearityLayer(network['outreshaped'],nonlinearity=lasagne.nonlinearities.softmax)
+        network['out'] = log_softmax(network['outreshaped'])
         
         return network
         
@@ -597,7 +603,7 @@ class Colorizer(object):
         network['out1'] = lasagne.layers.Conv2DLayer(network['re_concat2'], num_filters=self._numbins, filter_size=(1,1), pad='same', nonlinearity = None)
         network['outdimshuffled'] = lasagne.layers.DimshuffleLayer(network['out1'],(0,2,3,1))
         network['outreshaped'] = lasagne.layers.ReshapeLayer(network['outdimshuffled'],((input_var.shape[0]*self._x_pixel*self._x_pixel,self._numbins)))
-        network['out'] = lasagne.layers.NonlinearityLayer(network['outreshaped'],nonlinearity=lasagne.nonlinearities.softmax)
+        network['out'] = log_softmax(network['outreshaped'])
 
         return network
    
@@ -712,3 +718,5 @@ class Colorizer(object):
         network['out'] = lasagne.layers.Conv2DLayer(network['re_conv7'], num_filters=2, filter_size=filter_size, pad='same', 
                                            nonlinearity=lasagne.nonlinearities.linear)
         return network
+        
+

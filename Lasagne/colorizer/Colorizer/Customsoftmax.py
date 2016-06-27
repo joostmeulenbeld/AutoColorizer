@@ -1,27 +1,13 @@
-import theano.tensor as T
 import lasagne
+import theano.tensor as T
 
 
-class CustomSoftmax(lasagne.layers.Layer):
-    """
-        INPUT:
-                shape[batch size, num classes, xpixels ypixels]
-        OUTPUT:
-                shape[batch size*xpixels*ypixels,numclasses]
-    """
-    def __init__(self, incoming, num_bins, batch_size, x_pixels, y_pixels, **kwargs):
-        super(CustomSoftmax, self).__init__(incoming, **kwargs)
-        self.num_bins = num_bins
-        self.batch_size = batch_size
-        self.x_pixels = x_pixels
-        self.y_pixels = y_pixels
-    
-    
+class logSoftmax(lasagne.layers.Layer):
+    def __init__(self,input):
+        super(logSoftmax, self).__init__(input)
+        
+
     def get_output_for(self, input, **kwargs):
-        input_dimshuffled = input.dimshuffle((0,2,3,1))
-        input_reordered = input_dimshuffled.reshape((self.batch_size*self.x_pixels*self.y_pixels,self.num_bins))
-        
-        return T.nnet.softmax(input_reordered)
-        
-    def get_output_shape_for(self, input_shape):
-        return (self.batch_size*self.x_pixels*self.y_pixels,self.num_bins)
+        xdev = input - input.max(1, keepdims=True)
+        return xdev - T.log(T.sum(T.exp(xdev), axis=1, keepdims=True))
+    
