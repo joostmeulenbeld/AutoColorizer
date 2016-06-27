@@ -96,7 +96,7 @@ class NNPreprocessor(object):
             
             # Apparently, every time the LUT is saved, a different order is chosen for the two tables in the .npz folder, so load it dynamically
             # dtype of the probabilities is float32, of the indices uint16, so the index can be chosen based on the dtype
-            if a[a.keys()[0]].dtype == np.float32:
+            if a[a.keys()[0]].dtype == np.float32   :
                 index_prob = 0
             else:
                 index_prob = 1
@@ -315,8 +315,7 @@ class NNPreprocessor(object):
            
 
         # process next superbatch
-        unprocessed_batch, class1, class2 = self._process_superbatch(superbatch)
-        return unprocessed_batch, class1, class2
+        self._process_superbatch(superbatch)
 
 
     def _process_superbatch(self, superbatch):
