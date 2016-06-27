@@ -509,8 +509,9 @@ class Colorizer(object):
         #Make all trainable parameters non-trainable
         if not trainable:
             for key in sorted(network):
-                for param in network[key].get_params(trainable=True):
-                    network[key].params[param].remove('trainable')
+                if "batch_norm" not in key:
+                    for param in network[key].get_params(trainable=True):
+                        network[key].params[param].remove('trainable')
                 
         # network['pool4'] = lasagne.layers.PoolLayer(network['conv4_3'], 2)
         # 
