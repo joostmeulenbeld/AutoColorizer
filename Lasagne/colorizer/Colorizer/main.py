@@ -182,6 +182,7 @@ while True:
 
         # Run through the NN (validate to keep shape the same)
         NN_images, _ = NNColorizer.validate_NN(NNinput_images,histogram=train_data._colorbins.gethistogram())
+        NN_images= np.exp(NN_images)
         # Append with Luminocity layer
         if not(colorspace == 'HSV') and classification == False:
             NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
@@ -192,8 +193,6 @@ while True:
             NNinput_images = NNinput_images[:,1:,:,:].reshape(images.shape[0],-1,images.shape[2],images.shape[3])
             NNinput_images = NNinput_images.transpose(0,2,3,1)
             NNinput_images = NNinput_images.reshape(images.shape[0]*images.shape[2]*images.shape[3],-1)
-            print(NNinput_images.shape)
-            NNinput_images = np.exp(NN_images)
             input_image_ab=np.zeros((NN_images.shape[0],2))
             image_ab=np.zeros((NN_images.shape[0],2))
             print('applying annealed mean operation on image')
