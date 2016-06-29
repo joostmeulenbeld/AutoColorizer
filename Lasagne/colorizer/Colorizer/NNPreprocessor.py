@@ -25,7 +25,7 @@ from PIL import Image
 class NNPreprocessor(object):
     """This class preprocesses the batches previously generated"""    
 
-    def __init__(self, batch_size, folder, colorspace, random_superbatches=True, blur=False, randomize=True, sigma=3, classification=False, colorbins_k=6,colorbins_T=0.2, colorbins_sigma=5, colorbins_nbins=15, colorbins_labda=0.5, colorbins_gridsize=10):
+    def __init__(self, batch_size, folder, colorspace, random_superbatches=True, blur=False, randomize=True, sigma=3, classification=False, colorbins_k=6,colorbins_T=0.2, colorbins_sigma=5, colorbins_nbins=15, colorbins_labda=0.5, colorbins_gridsize=10, flip_dataset=True):
         """ 
         INPUT:
                 batch_size: amount of images returned by get batch, (needed for preloading)
@@ -60,6 +60,7 @@ class NNPreprocessor(object):
         self._colorbins = Colorbins(k=colorbins_k,T=colorbins_T, grid_size=colorbins_gridsize, sigma=colorbins_sigma, nbins=colorbins_nbins, labda=colorbins_labda)
         self._classification = classification
         self._update_histogram = True
+        self._flip_dataset = flip_dataset
         
 
         # Create queue for the batches
@@ -74,6 +75,10 @@ class NNPreprocessor(object):
         except:
             print("Folder '{}' does not exist".format(folder))
             raise
+
+        # If the data set should also be flipped, add this to the list of superbatches, with "filename_flipped" as entry
+        if self._flip_dataset:
+            self._filenames.extend([filename+"_flipped" for filename in self._filenames])
 
         self._n_superbatches = len(self._filenames)
         self._superbatch_shape = np.load(os.path.join(self._folder, self._filenames[0]) , mmap_mode='r').shape
@@ -142,7 +147,7 @@ class NNPreprocessor(object):
         OUTPUT:
                 number of batches extracted from one superbatch
         """
-
+        # load the random superbatch with mmap_mode='r' such that it doesn't actually load it to memory
         return np.floor(self._superbatch_shape[0] / self._batch_size)
 
     @property
@@ -153,7 +158,6 @@ class NNPreprocessor(object):
         """
         done = self._epoch_done
         self._epoch_done = False
-
         return done
 
     @property
@@ -163,6 +167,7 @@ class NNPreprocessor(object):
                 a batch of shape=(batch_size, 3, image_x, image_y)
         """
         # if batch array is empty, call _proces_next_superbatch, save result in self.batches
+    
         if self._batch_queue.empty():
             self._process_next_superbatch()
 
@@ -285,7 +290,6 @@ class NNPreprocessor(object):
 
             image = self.get_random_image(colorspace, blur)
             batch = np.append(batch, image, axis=0)
-
         return batch
 
 
@@ -308,12 +312,16 @@ class NNPreprocessor(object):
             # add 1 to epoch counter
             self._epoch += 1
 
-
         # load superbatch numpy array by taking superbatch_queue.get()
         filename = self._superbatch_queue.get()
-        superbatch = np.load(os.path.join(self._folder,filename)) / 255.
-           
-
+        
+        # Check if the next superbatch is to be flipped
+        if "_flipped" in filename:
+            filename = filename[:-len("_flipped")]
+            superbatch = np.load(os.path.join(self._folder,filename))[:,:,:,::-1] / 255.
+        else:
+            superbatch = np.load(os.path.join(self._folder,filename)) / 255.
+            
         # process next superbatch
         self._process_superbatch(superbatch)
 
