@@ -5,7 +5,7 @@ author: Dawud Hage, written for the NN course IN4015 of the TUDelft
 
 """
 import os
-#os.environ["THEANO_FLAGS"] = "floatX=float32,device=gpu,dnn.enabled=True,optimizer_including=conv_meta,metaopt.verbose=1,optimizer_excluding=more_mem,lib.cnmem=0.75"
+os.environ["THEANO_FLAGS"] = "floatX=float32,device=gpu,dnn.enabled=True,optimizer_including=conv_meta,metaopt.verbose=1,optimizer_excluding=more_mem,lib.cnmem=0.75"
 import sys
 from time import time, sleep
 from datetime import timedelta
