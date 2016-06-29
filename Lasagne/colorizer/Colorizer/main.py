@@ -177,12 +177,14 @@ while True:
 
         # Run through the NN (validate to keep shape the same)
         NN_images, _ = NNColorizer.validate_NN(NNinput_images,histogram=train_data._colorbins.gethistogram())
-        NN_images= np.exp(NN_images)
+        
         # Append with Luminocity layer
         if not(colorspace == 'HSV') and classification == False:
             NN_images = np.append(images[:,0,:,:].reshape(images.shape[0],1,images.shape[2],images.shape[3]),NN_images,axis=1)
         elif classification == True:
+
             # output is log probability so needs to be converted to probabilities again
+            NN_images= np.exp(NN_images)
             #if classification is true the annealed mean operation first is performed on all the colorbin probability values to get one color for each pixel
             # then the whole matrix gets reshaped in order to plot it as an image
             NNinput_images = NNinput_images[:,1:,:,:].reshape(images.shape[0],-1,images.shape[2],images.shape[3])
