@@ -5,6 +5,7 @@ author: Dawud Hage, written for the NN course IN4015 of the TUDelft
 
 """
 import os
+#os.environ["THEANO_FLAGS"] = "floatX=float32,device=gpu,dnn.enabled=True,optimizer_including=conv_meta,metaopt.verbose=1,optimizer_excluding=more_mem,lib.cnmem=0.75"
 import sys
 from time import time, sleep
 from datetime import timedelta
@@ -22,7 +23,7 @@ from conf import *
 
 ######################
 
-if architecture == "zhangNN" or architecture == "VGG16_concat_class" or architecture == "VGG16_dilated_class":
+if architecture == "Dahl_Zhang_NO_VGG16" or architecture == "Dahl_classifier" or architecture == "Dahl_Zhang" or architecture == "Zhang":
     #set classification to True when classification network is selected
     classification = True
     colorspace = 'CIELab'
@@ -33,7 +34,7 @@ if architecture == "zhangNN" or architecture == "VGG16_concat_class" or architec
 
 # Load data
 
-train_data = NNPreprocessor(batch_size=10, folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, classification=classification, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
+train_data = NNPreprocessor(batch_size=10,folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, classification=classification, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
 validation_data = NNPreprocessor(batch_size=10, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=classification, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
 
 
@@ -79,8 +80,7 @@ if n_epoch > 0:
 
         # Train one batch
         if classification:
-            output, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.gethistogram())
-            print(output)
+            _, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.gethistogram())
         else:
             _, error = NNColorizer.train_NN(train_data.get_batch)
         train_error += error # Add to error
