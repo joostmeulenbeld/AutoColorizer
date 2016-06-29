@@ -16,6 +16,20 @@ from Customsoftmax import logSoftmax as log_softmax
 from NNPreprocessor import assert_colorspace
 
 
+"""
+To keep things more orginized the names of the NN are changed half way.
+
+VGG16               --> Dahl
+NN                  --> Compact
+NN_more_end_fmaps   --> Compact_more_end_fmaps
+VGG16_concat        --> Dahl_classifier
+VGG16_dilated       --> Dahl_Zhang
+zhangNN             --> Dahl_Zhang_NO_VGG16
+
+One network is added:
+                    --> Zhang
+"""
+
 class Colorizer(object):
     """This class defines the neural network and functions to colorize images"""
 
@@ -53,18 +67,20 @@ class Colorizer(object):
         # Create the neural network
         print("---Create the neural network")
 
-        if architecture=='VGG16':
+        if architecture=='Dahl':
             self._network = self._vgg16NN(self._input, reconstruct=1)
-        elif architecture=='NN':
-            self._network = self._NN(self._input,reconstruct=1)
-        elif architecture=='NN_more_end_fmaps':
-            self._network = self._NN(self._input,reconstruct=2)
-        elif architecture=='zhangNN' :
-            self._network = self._zhangNN(self._input)
-        elif architecture == 'VGG16_concat_class':
+        elif architecture=='Compact':
+            self._network = self._Compact(self._input,reconstruct=1)
+        elif architecture=='Compact_more_end_fmaps':
+            self._network = self._Compact(self._input,reconstruct=2)
+        elif architecture=='Dahl_Zhang_NO_VGG16' :
+            self._network = self.Dahl_Zhang_NO_VGG16(self._input)
+        elif architecture == 'Dahl_classifier':
             self._network = self._vgg16NN(self._input, reconstruct=2)
-        elif architecture == 'VGG16_dilated_class':
+        elif architecture == 'Dahl_Zhang':
             self._network = self._vgg16NN(self._input, reconstruct=3)
+        elif architecture == 'Zhang':
+            self._network = self._vgg16NN(self._input, reconstruct=4)
         else:
             raise AttributeError("The provided architecture is unknown.")
 
@@ -132,11 +148,15 @@ class Colorizer(object):
             ## And take the mean over the batch
             #loss = loss.mean()
         elif (self._classification == True):
-            #cross entropy loss function: output of the network is [batch,classes,x,y]
+            # cross entropy loss function: output of the network is [batch,classes,x,y]
+            # dimshuffle such that the classes is the last axis
             target_dimshuffled = self._target.dimshuffle((0,2,3,1))
+            # reshape to a matrix so that all the pixels of all the batches are in the rows and the bin numbers are the colums
+            # so that the loss function gets a vector per pixel.
             target_reshaped = target_dimshuffled.reshape((target_dimshuffled.shape[0]*self._x_pixel*self._x_pixel,self._numbins))
-            value_function = T.sum((target_reshaped * 1/self._histogram),axis = 1)
-            
+            # Determine the value function, dot product of the output with the inverse histogram (scaled to have a expected value of 1)
+            value_function = T.sum((target_reshaped * ( 1/self._histogram) / T.mean(1/self._histogram)  ),axis = 1)
+            # apply cross entropy, output is already in logdomain
             loss = self.categorical_crossentropy_logdomain(output,target_reshaped)
             # Apply class rebalancing; take the mean
             loss = T.mean(loss * value_function)
@@ -340,7 +360,7 @@ class Colorizer(object):
 
         self._layer_function[layer_name] = theano.function([self._input],output)
 
-    def _NN(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2, reconstruct=1):
+    def _Compact(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2, reconstruct=1):
         """ 
         This function defines the architecture of the Fruit colorizer network 
    
@@ -389,14 +409,14 @@ class Colorizer(object):
         network['conv_final']        = lasagne.layers.Conv2DLayer(network['conv8'], num_filters=96, filter_size=(1,1), pad='same')
 
         if (reconstruct == 1):
-            return self._reconstructNN(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
+            return self._reconstructCompact(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
         elif(reconstruct == 2):
-            return self._reconstructNN2(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
+            return self._reconstructCompact_more_end_fmaps(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
         else:
             raise AttributeError("Unknown reconstruct id")
             
             
-    def _zhangNN(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), stride = (2, 2)):
+    def Dahl_Zhang_NO_VGG16(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), stride = (2, 2)):
         """ 
         This function defines the architecture of the Fruit colorizer network as defined by Zhang et al
    
@@ -526,15 +546,17 @@ class Colorizer(object):
         # network['conv5_3'] = lasagne.layers.ConvLayer(network['conv5_2'], 512, 3, pad='same', flip_filters=False)
         # network['pool5'] = lasagne.layers.PoolLayer(network['conv5_3'], 2)
         if (reconstruct == 1):
-            return self._reconstructVGG16NN(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
+            return self._reconstructDahl(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
         elif(reconstruct == 2):
-            return self._reconstructVGG16NN_concat_class(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
+            return self._reconstructDahl_classifier(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
         elif(reconstruct == 3):
-            return self._reconstructVGG16NN_dilated_class(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
+            return self._reconstructDahl_Zhang(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
+        elif(reconstruct == 4):
+            return self._reconstructZhang(network, input_var=input_var, image_size=image_size, filter_size=filter_size, pool_size=pool_size)
         else:
             raise AttributeError("Unknown reconstruct id")
         
-    def _reconstructVGG16NN_concat_class(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+    def _reconstructDahl_classifier(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
         ## Now Construct the image again!
         # Get the batch norm and reduce feature maps to fit previous layer
         network['re_batch_norm1']  = lasagne.layers.batch_norm(network['conv_final'])
@@ -573,7 +595,7 @@ class Colorizer(object):
         
         return network
         
-    def _reconstructVGG16NN_dilated_class(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+    def _reconstructDahl_Zhang(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
         
              
         # Define the fourth layer, first dilated layer. input resolution=32*32, output resolution=64*64
@@ -606,8 +628,38 @@ class Colorizer(object):
         network['out'] = log_softmax(network['outreshaped'])
 
         return network
+
+    def _reconstructZhang(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+        
+             
+        # Define the fourth layer, first dilated layer. input resolution=32*32, output resolution=32*32
+        network['conv9']        = lasagne.layers.Conv2DLayer(network['batch_norm3'], num_filters=256, filter_size=filter_size, pad='same')
+        network['pad1']     = lasagne.layers.PadLayer(network['conv9'], width=(3,3))
+        network['conv10']   = lasagne.layers.DilatedConv2DLayer(network['pad1'], num_filters=256, filter_size=filter_size, dilation=(3,3))
+        network['pad2']     = lasagne.layers.PadLayer(network['conv10'], width=(7,7))
+        network['conv11']   = lasagne.layers.DilatedConv2DLayer(network['pad2'], num_filters=256, filter_size=filter_size, dilation=(7,7))
+        # Take the batch norm
+        network['batch_norm4']  = lasagne.layers.batch_norm(network['conv11'])
+        
+        # Define the fifth layer, first upscale layer, second dilated layer. input resolution=32*32, output resolution=32*32
+        network['pad3']     = lasagne.layers.PadLayer(network['batch_norm4'],width=(3,3))
+        network['conv12']   = lasagne.layers.DilatedConv2DLayer(network['pad3'], num_filters=256, filter_size=filter_size, dilation=(3,3))
+        network['pad4']     = lasagne.layers.PadLayer(network['conv12'],width=(7,7))
+        network['conv13']   = lasagne.layers.DilatedConv2DLayer(network['pad4'], num_filters=256, filter_size=filter_size, dilation=(7,7))
+
+        # Take the batch norm. input resolution=32*32, output resolution=128*128
+        network['batch_norm5']  = lasagne.layers.batch_norm(network['conv14'])
+        network['re_Upscale2']     = lasagne.layers.Upscale2DLayer(network['batch_norm5'], scale_factor=4)
+        
+        # Define the sixth and final layer, 
+        network['out1'] = lasagne.layers.Conv2DLayer(network['re_Upscale2'], num_filters=self._numbins, filter_size=(1,1), pad='same', nonlinearity = None)
+        network['outdimshuffled'] = lasagne.layers.DimshuffleLayer(network['out1'],(0,2,3,1))
+        network['outreshaped'] = lasagne.layers.ReshapeLayer(network['outdimshuffled'],((input_var.shape[0]*self._x_pixel*self._x_pixel,self._numbins)))
+        network['out'] = log_softmax(network['outreshaped'])
+
+        return network
    
-    def _reconstructNN(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+    def _reconstructCompact(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
         
         ## Now Construct the image again!
         # Get the batch norm and reduce feature maps to fit previous layer
@@ -646,7 +698,7 @@ class Colorizer(object):
             
         return network
 
-    def _reconstructNN2(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+    def _reconstructCompact_more_end_fmaps(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
         
         ## Now Construct the image again!
         # Get the batch norm and reduce feature maps to fit previous layer
@@ -682,7 +734,7 @@ class Colorizer(object):
                                            nonlinearity=lasagne.nonlinearities.linear)
         return network
 
-    def _reconstructVGG16NN(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+    def _reconstructDahl(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
         
         ## Now Construct the image again!
         # Get the batch norm and reduce feature maps to fit previous layer
