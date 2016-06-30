@@ -179,6 +179,7 @@ class NNPreprocessor(object):
         # When the first epoch is done, updating of the histogram should stop
         if self._epoch_done:
             self._update_histogram = False
+            self._colorbins.save_histogram()
         # return next item in array
         return batch
 

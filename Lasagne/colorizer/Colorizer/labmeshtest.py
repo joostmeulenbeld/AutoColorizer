@@ -4,13 +4,16 @@ discrete color bins.
 author: Joost Dorscheidt, written for the NN course IN4015 of the TUDelft
 
 """
+import os
+from time import time
+
 import numpy as np
 import numpy.matlib as matlib
 import matplotlib.pyplot as plot
 import matplotlib.path as path
 from scipy.spatial import ConvexHull
 from skimage import color
-from time import time
+
 
 class Colorbins(object):
     
@@ -93,6 +96,16 @@ class Colorbins(object):
 
         return image
         
+    def save_histogram(self):
+        """Output the histogram along with a and b locations to a numpy file and save it in folder histogram"""
+        if not os.path.exists("histogram"):
+            os.makedirs("histogram")
+            
+        savename = os.path.join("histogram", "histogram_numbins_{}".format(self.numbins))
+        histogramsavename = "{}_{}".format(savename, "histogram")
+        meshsavename = "{}_{}".format(savename, "mesh")
+        np.save(histogramsavename, self._histogram)
+        np.save(meshsavename, self.finalmesh)
         
         
     def get_colorpoints(self):

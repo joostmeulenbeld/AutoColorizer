@@ -11,6 +11,7 @@ from skimage import color
 from PIL import Image
 import matplotlib.pyplot as plot
 import matplotlib.gridspec as gridspec
+from mpl_toolkits.mplot3d import Axes3D
 import os
 from tabulate import tabulate
 
@@ -135,6 +136,39 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace, classification=F
 
     # Show the figures
     plot.show()
+    
+def show_histogram(numbins, log10=True):
+    """Load the numpy files corresponding to numbins, and show a histogram"""
+    savename = os.path.join("histogram", "histogram_numbins_{}".format(numbins))
+    histogramsavename = "{}_{}.npy".format(savename, "histogram")
+    meshsavename = "{}_{}.npy".format(savename, "mesh")
+    try:
+        histogram = np.load(histogramsavename).transpose()
+        mesh = np.load(meshsavename)
+    except:
+        print("Filenames {} and/or {} not found".format(histogramsavename, meshsavename))
+        raise
+        
+    if log10:
+        histogram = np.log10(histogram)
+    fig = plot.figure()
+    ax = fig.gca(axisbg='white') #projection='3d',  
+    ax.set_aspect('equal')
+
+    ax.scatter(mesh[:,0], mesh[:,1], c=histogram)
+    ax.tick_params(colors='black')
+
+    # Set the pane color to black
+    # ax.w_xaxis.set_pane_color((0,0,0))
+    # ax.w_yaxis.set_pane_color((0,0,0))
+    # ax.w_zaxis.set_pane_color((0,0,0))
+
+    # Make the axis labels
+    ax.set_xlabel("a", color='black')
+    ax.set_ylabel("b", color='black')
+    # ax.set_zlabel("log(P(a,b))", color='black')
+    plot.show()        
+    
 
 def print_progress(string, elapsed_time, progress, error):
     """
@@ -262,3 +296,7 @@ def gen_menu(menu_options, str=""):
     print('Your choice: \t')
 
     return get_int()
+    
+    
+if __name__ == "__main__":
+    show_histogram(247)
