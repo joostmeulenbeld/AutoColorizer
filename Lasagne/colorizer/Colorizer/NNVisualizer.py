@@ -12,6 +12,7 @@ from PIL import Image
 import matplotlib.pyplot as plot
 import matplotlib.gridspec as gridspec
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib import cm
 import os
 from tabulate import tabulate
 
@@ -152,21 +153,24 @@ def show_histogram(numbins, log10=True):
     if log10:
         histogram = np.log10(histogram)
     fig = plot.figure()
-    ax = fig.gca(axisbg='white') #projection='3d',  
+    ax = fig.gca(projection='3d', axisbg='white') #,  
     ax.set_aspect('equal')
-
-    ax.scatter(mesh[:,0], mesh[:,1], c=histogram)
+    print(mesh[:,0].shape)
+    print(mesh[:,1].shape)
+    print(histogram.shape)
+    cax = ax.plot_trisurf(mesh[:,0], mesh[:,1], histogram.squeeze(), cmap=cm.jet)
     ax.tick_params(colors='black')
 
     # Set the pane color to black
-    # ax.w_xaxis.set_pane_color((0,0,0))
-    # ax.w_yaxis.set_pane_color((0,0,0))
-    # ax.w_zaxis.set_pane_color((0,0,0))
+    ax.w_xaxis.set_pane_color((0,0,0))
+    ax.w_yaxis.set_pane_color((0,0,0))
+    ax.w_zaxis.set_pane_color((0,0,0))
 
     # Make the axis labels
     ax.set_xlabel("a", color='black')
     ax.set_ylabel("b", color='black')
-    # ax.set_zlabel("log(P(a,b))", color='black')
+    ax.set_zlabel("log(P(a,b))", color='black')
+    fig.colorbar(cax, orientation='vertical')
     plot.show()        
     
 
@@ -299,4 +303,4 @@ def gen_menu(menu_options, str=""):
     
     
 if __name__ == "__main__":
-    show_histogram(247)
+    show_histogram(247, log10=True)

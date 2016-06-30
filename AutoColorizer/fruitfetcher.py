@@ -50,7 +50,7 @@ class FruitFetcher:
             flickr static url
         """
         # return the url and the id of the photo
-        return 'https://farm{farm_id}.staticflickr.com/{server_id}/{id}_{secret}_{imsize}.jpg'.format(farm_id=random.randint(1,9), # Default to farm 1
+        return 'https://farm{farm_id}.staticflickr.com/{server_id}/{id}_{secret}_{imsize}.jpg'.format(farm_id=random.randint(1,9), # Take a random form such that flickr doesn't suspect ddos
             server_id=params['server'],
             id=params['id'],
             secret=params['secret'],
