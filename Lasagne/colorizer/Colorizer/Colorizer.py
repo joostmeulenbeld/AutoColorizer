@@ -769,8 +769,8 @@ class Colorizer(object):
         network['re_concat3']      = lasagne.layers.concat([network['batch_norm1'], network['re_Upscale3']])
         # Convolve L_1 to fit feature maps to L1
         network['re_conv6']       = lasagne.layers.Conv2DLayer(network['re_concat3'], num_filters=24, filter_size=filter_size, pad='same')
-        network['re_conv7']       = lasagne.layers.Conv2DLayer(network['re_conv6'], num_filters=24, filter_size=filter_size, pad='same') 
-        network['re_conv8']       = lasagne.layers.Conv2DLayer(network['re_conv7'], num_filters=96, filter_size=filter_size, pad='same')    
+        network['re_conv7']       = lasagne.layers.Conv2DLayer(network['re_conv6'], num_filters=64, filter_size=filter_size, pad='same') 
+        network['re_conv8']       = lasagne.layers.Conv2DLayer(network['re_conv7'], num_filters=128, filter_size=filter_size, pad='same')    
 
         # Convolve L_1 to fit the desired output
         network['out1'] = lasagne.layers.Conv2DLayer(network['re_conv7'], num_filters=self._numbins, filter_size=(1,1), pad='same', nonlinearity = None)
