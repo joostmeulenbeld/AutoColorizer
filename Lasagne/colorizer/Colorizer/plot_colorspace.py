@@ -26,11 +26,15 @@ def plot_colorspace(color_array, colors, xlabel, ylabel, zlabel, axis=(0,1,2)):
     """
 
     # Plot the RGB space (each point in their desired color)
-    fig = plot.figure()
+    fig = plot.figure(figsize=(12, 12), dpi=80)
     ax = fig.gca(projection='3d', axisbg='white')
     ax.set_aspect('equal')
+    plot.rc('font', family='serif', size=15)
+    fontsize = 20
+    labelpad = 20
 
-    ax.scatter(color_array[axis[0],:],color_array[axis[1],:],color_array[axis[2],:],c=colors,s=marker_size)
+
+    ax.scatter(color_array[axis[0],:],color_array[axis[1],:],color_array[axis[2],:],c=colors,s=marker_size,depthshade=False)
     ax.tick_params(colors='black')
 
     # Set the pane color to black
@@ -39,9 +43,10 @@ def plot_colorspace(color_array, colors, xlabel, ylabel, zlabel, axis=(0,1,2)):
     ax.w_zaxis.set_pane_color((0,0,0))
 
     # Make the axis labels
-    ax.set_xlabel(xlabel, color='black')
-    ax.set_ylabel(ylabel, color='black')
-    ax.set_zlabel(zlabel, color='black')
+    ax.set_xlabel(xlabel, color='black', fontsize=fontsize, labelpad=labelpad)
+    ax.set_ylabel(ylabel, color='black', fontsize=fontsize, labelpad=labelpad)
+    ax.set_zlabel(zlabel, color='black', fontsize=fontsize, labelpad=labelpad)
+    ax.view_init(25, 60)
     plot.show()
 
  
@@ -53,7 +58,7 @@ def plot_colorspace(color_array, colors, xlabel, ylabel, zlabel, axis=(0,1,2)):
 # create a "figure", actually an array containing all possible 8bit RGB colors
 # Maybe not all.. skip a few
 marker_size = 100
-RGB_range = np.arange(0,255,5)
+RGB_range = np.arange(0,256,15)
 R,G,B = np.meshgrid(RGB_range,RGB_range,RGB_range)
 
 # Flatten the arrays and stack them

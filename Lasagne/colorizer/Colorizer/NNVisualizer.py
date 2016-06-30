@@ -152,14 +152,20 @@ def show_histogram(numbins, log10=True):
         
     if log10:
         histogram = np.log10(histogram)
-    fig = plot.figure()
-    ax = fig.gca(projection='3d', axisbg='white') #,  
+    fig = plot.figure(figsize=(12, 12), dpi=80)
+    plot.rc('font', family='serif', size=15)
+    ax = fig.gca(projection='3d', axisbg='white')
+    ax.set_aspect('equal')
+    fontsize = 20
+    labelpad = 20
     ax.set_aspect('equal')
     print(mesh[:,0].shape)
     print(mesh[:,1].shape)
     print(histogram.shape)
     cax = ax.plot_trisurf(mesh[:,0], mesh[:,1], histogram.squeeze(), cmap=cm.jet)
     ax.tick_params(colors='black')
+    ax.tick_params(axis='x', which='major', pad=20)
+    #ax.tick_params(axis='y', which='major', pad=15)
 
     # Set the pane color to black
     ax.w_xaxis.set_pane_color((0,0,0))
@@ -167,10 +173,15 @@ def show_histogram(numbins, log10=True):
     ax.w_zaxis.set_pane_color((0,0,0))
 
     # Make the axis labels
-    ax.set_xlabel("a", color='black')
-    ax.set_ylabel("b", color='black')
-    ax.set_zlabel("log(P(a,b))", color='black')
+    ax.set_xlabel("a", color='black', fontsize=fontsize, labelpad=labelpad+20)
+    ax.set_ylabel("log(P(a,b))", color='black', fontsize=fontsize, labelpad=labelpad)
+    #ax.set_zlabel("log(P(a,b))", color='black')
     fig.colorbar(cax, orientation='vertical')
+    ax.view_init(90, 0)
+    ax.w_zaxis.line.set_lw(0.)
+    ax.set_zticks([])
+    ax.grid(b=False)
+    plot.tight_layout()
     plot.show()        
     
 
