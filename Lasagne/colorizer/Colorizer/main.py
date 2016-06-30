@@ -88,12 +88,15 @@ while train_data.get_epoch < n_epoch:
 
     if train_data.get_epoch_done:
 
+        # Keep track of the current epoch
+        last_epoch += 1
+
         # New line in the console
         print("")
 
         # Save the parameters!
         if not(param_save_file is None):
-            NNColorizer.save_parameters(os.path.join(param_folder,param_save_file + '.npy'))
+            NNColorizer.save_parameters(os.path.join(param_folder,param_save_file + '_epoch_' + str(last_epoch) + '.npy'))
 
         # Keep track of the validation error
         validation_error = 0
@@ -115,7 +118,7 @@ while train_data.get_epoch < n_epoch:
         # New line in the console
         print("")
 
-        last_epoch += 1
+        
         # store error in the error_log
         if not(error_log is None):
                 error_log = np.append(error_log, np.array([[last_epoch, train_error / train_data.get_n_batches , validation_error / validation_data.get_n_batches  ]]), axis=0)
