@@ -29,6 +29,8 @@ zhangNN             --> Dahl_Zhang_NO_VGG16
 One network is added:
                     --> Zhang
                     --> Compact_more_end_fmaps_classifier
+                    --> Compact_more_end_fmaps_dilation_concat
+                    --> Compact_more_end_fmaps_dilation
 """
 
 class Colorizer(object):
@@ -76,6 +78,10 @@ class Colorizer(object):
             self._network = self._Compact(self._input,reconstruct=2)
         elif architecture=='Compact_more_end_fmaps_classifier':
             self._network = self._Compact(self._input,reconstruct=3)
+        elif architecture=='Compact_more_end_fmaps_dilation':
+            self._network = self._Compact_more_end_fmaps_dilation(self._input)
+        elif architecture=='Compact_more_end_fmaps_dilation_concat':
+            self._network = self._Compact_more_end_fmaps_dilation_concat(self._input)
         elif architecture=='Dahl_Zhang_NO_VGG16' :
             self._network = self.Dahl_Zhang_NO_VGG16(self._input)
         elif architecture == 'Dahl_classifier':
@@ -780,7 +786,7 @@ class Colorizer(object):
 
         return network
 
-
+    
     def _Compact_more_end_fmaps_dilation(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
         """ 
         This function defines the architecture of the Fruit colorizer network 
@@ -855,7 +861,7 @@ class Colorizer(object):
 
         return network
 
-
+    
     def _Compact_more_end_fmaps_dilation_concat(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
         """ 
         This function defines the architecture of the Fruit colorizer network 
