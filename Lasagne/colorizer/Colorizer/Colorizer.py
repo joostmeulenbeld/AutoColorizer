@@ -787,7 +787,7 @@ class Colorizer(object):
         return network
 
     
-    def _Compact_more_end_fmaps_dilation(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+    def _Compact_more_end_fmaps_dilation(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
         """ 
         This function defines the architecture of the Fruit colorizer network 
    
@@ -862,7 +862,7 @@ class Colorizer(object):
         return network
 
     
-    def _Compact_more_end_fmaps_dilation_concat(self, network, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
+    def _Compact_more_end_fmaps_dilation_concat(self, input_var=None, image_size=(128, 128), filter_size = (3, 3), pool_size = 2):
         """ 
         This function defines the architecture of the Fruit colorizer network 
    
