@@ -606,6 +606,8 @@ def remap_CIELab(image):
     image[:,:,1] = (image[:,:,1] + 108.) / (2.*108) # take the same subset as for the b values, so the colors wont be skewed
     image[:,:,2] = (image[:,:,2] + 108.) / (2.*108) # Normalize all b values
 
+    return image
+
 def unmap_CIELab(image):
     """
     Inverse of remap_CIELab

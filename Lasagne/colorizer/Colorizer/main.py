@@ -23,7 +23,7 @@ from conf import *
 
 ######################
 
-if architecture == "Dahl_Zhang_NO_VGG16" or architecture == "Dahl_classifier" or architecture == "Dahl_Zhang" or architecture == "Zhang":
+if architecture == "Dahl_Zhang_NO_VGG16" or architecture == "Dahl_classifier" or architecture == "Dahl_Zhang" or architecture == "Zhang" or architecture == 'Compact_more_end_fmaps_classifier':
     #set classification to True when classification network is selected
     classification = True
     colorspace = 'CIELab'
