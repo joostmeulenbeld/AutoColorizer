@@ -168,6 +168,61 @@ def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace, classification=F
 
     # Show the figures
     plot.show()
+
+
+def show_images(ORGbatch, NNbatch, colorspace, classification=False):
+    """ 
+    INPUT:
+            ORGbatch: batch of (original) images with shape=(batch_size, 3, image_x, image_y)
+            NNbatch : batch of (NN output) images with shape=(batch_size, 3, image_x, image_y)
+            colorspace: the colorspace that the input batches are in;
+                        'CIELab' for CIELab colorspace
+                        'CIEL*a*b*' for the mapped CIELab colorspace (by function remap_CIELab in NNPreprocessor)
+                        'RGB' for rgb mapped between [0 and 1]
+                        'YCbCr' for YCbCr
+                        'HSV' for HSV
+    """
+    assert (ORGbatch.shape == NNbatch.shape), "ORGbatch and NNbatch do not have the same shape"
+    n_images,_,_,_ = ORGbatch.shape
+
+    # Create figure
+    dpi = 100
+    padding_px = 5
+    f, ax = plot.subplots(n_images,3, figsize=((128*3 + 6*padding_px)/dpi, (128*n_images + 6*padding_px)/dpi), dpi=dpi)
+    f.subplots_adjust(hspace=padding_px/dpi, wspace=padding_px/dpi)
+
+    # and loop over the images
+    for index in range(0,n_images,1):
+
+        # Get the image
+        ORG_img = array2img(ORGbatch[int(index/2),:,:,:],colorspace, classification)
+        NN_img  = array2img(NNbatch[int(index/2),:,:,:],colorspace, classification)
+
+        # Define the different channel ids to show
+        # (gray, layer_1, layer_2)
+        if (colorspace == 'CIEL*a*b*') or (colorspace == 'YCbCr') or (classification == True):
+            channels = (0,1,2)
+        elif (colorspace == 'HSV'):
+            channels = (2,0,1)
+        else:
+            raise ValueError("Cannot handle this colorspace, can only process 'CIEL*a*b*' and 'HSV'")
+
+        # Get the grayscale input
+        ORG_gray = ORGbatch[int(index/2),channels[0],:,:]
+
+        # Show original image
+        # grayscale input
+        ax[index,0].axis('off')
+        ax[index,0].imshow(ORG_gray,cmap='gray')
+        # The colored image
+        ax[index,1].axis('off')
+        ax[index,1].imshow(np.asarray(NN_img))
+        # color image
+        ax[index,2].axis('off')
+        ax[index,2].imshow(np.asarray(ORG_img))
+
+    # Show the figures
+    plot.show()
     
 def show_histogram(numbins, log10=True):
     """Load the numpy files corresponding to numbins, and show a histogram"""
@@ -183,14 +238,20 @@ def show_histogram(numbins, log10=True):
         
     if log10:
         histogram = np.log10(histogram)
-    fig = plot.figure()
-    ax = fig.gca(projection='3d', axisbg='white') #,  
+    fig = plot.figure(figsize=(12, 12), dpi=80)
+    plot.rc('font', family='serif', size=15)
+    ax = fig.gca(projection='3d', axisbg='white')
+    ax.set_aspect('equal')
+    fontsize = 20
+    labelpad = 20
     ax.set_aspect('equal')
     print(mesh[:,0].shape)
     print(mesh[:,1].shape)
     print(histogram.shape)
     cax = ax.plot_trisurf(mesh[:,0], mesh[:,1], histogram.squeeze(), cmap=cm.jet)
     ax.tick_params(colors='black')
+    ax.tick_params(axis='x', which='major', pad=20)
+    #ax.tick_params(axis='y', which='major', pad=15)
 
     # Set the pane color to black
     ax.w_xaxis.set_pane_color((0,0,0))
@@ -198,10 +259,15 @@ def show_histogram(numbins, log10=True):
     ax.w_zaxis.set_pane_color((0,0,0))
 
     # Make the axis labels
-    ax.set_xlabel("a", color='black')
-    ax.set_ylabel("b", color='black')
-    ax.set_zlabel("log(P(a,b))", color='black')
+    ax.set_xlabel("a", color='black', fontsize=fontsize, labelpad=labelpad+20)
+    ax.set_ylabel("log(P(a,b))", color='black', fontsize=fontsize, labelpad=labelpad)
+    #ax.set_zlabel("log(P(a,b))", color='black')
     fig.colorbar(cax, orientation='vertical')
+    ax.view_init(90, 0)
+    ax.w_zaxis.line.set_lw(0.)
+    ax.set_zticks([])
+    ax.grid(b=False)
+    plot.tight_layout()
     plot.show()        
     
 
