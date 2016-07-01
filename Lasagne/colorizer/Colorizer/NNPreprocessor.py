@@ -161,7 +161,7 @@ class NNPreprocessor(object):
         return done
 
     @property
-    def  get_batch(self):
+    def get_batch(self):
         """
         OUTPUT:
                 a batch of shape=(batch_size, 3, image_x, image_y)
@@ -215,7 +215,7 @@ class NNPreprocessor(object):
 
         # Check if image number exists
         assert image_id < superbatch.shape[0] and image_id >= 0, \
-            print("Requested image {}, but only {} images present in the requrested batch".format(image_id, len(superbatch.shape[0]), self._folder))
+            print("Requested image {}, but only {} images present in the requested batch".format(image_id, len(superbatch.shape[0]), self._folder))
 
         # Extract image and rearange to shape=(image_x,image_y,3)
         image = np.transpose(superbatch[image_id,:,:,:], [1,2,0]) / 255.

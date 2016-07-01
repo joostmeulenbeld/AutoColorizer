@@ -35,7 +35,7 @@ if architecture == "Dahl_Zhang_NO_VGG16" or architecture == "Dahl_classifier" or
 
 train_data = NNPreprocessor(batch_size=10,folder=training_folder, colorspace=colorspace, random_superbatches=True, blur=True, randomize=True, classification=classification, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
 validation_data = NNPreprocessor(batch_size=10, folder=validation_folder, colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=classification, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
-selected_data = NNPreprocessor(batch_size=10,folder='minisuperbatch', colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=classification, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
+selected_data = NNPreprocessor(batch_size=10,folder='selection', colorspace=colorspace, random_superbatches=False, blur=False, randomize=False, classification=False, sigma=sigma, colorbins_k = colorbins_k, colorbins_T = colorbins_T, colorbins_sigma = colorbins_sigma, colorbins_nbins = colorbins_nbins, colorbins_labda = colorbins_labda, colorbins_gridsize=colorbins_gridsize)
 
 # Create network object
 if not(param_file is None):
@@ -73,9 +73,10 @@ else:
 
 # Now train the network
 print("---------------------------------------")
-    
-while train_data.get_epoch < n_epoch:  
-
+# Beun is required because it sets epoch at -1, thus doing one batch even when n_epoch is set to 0
+beun=1
+while train_data.get_epoch+beun < n_epoch:  
+    beun=0
     # Train one batch
     if classification:
         _, error = NNColorizer.train_NN(train_data.get_batch, histogram=train_data._colorbins.gethistogram())
@@ -228,17 +229,19 @@ while True:
         NNshow.show_images_with_ab_channels(NNinput_images,NN_images,colorspace,classification=classification)
 
     elif choice == 2:
-        n_images = 10
 
         
 
         # get random images from the validation set
         images = selected_data.get_batch
+        
+        n_images = images.shape[0]
+        
         NNinput_images = images
         
         if classification == True:
-            # convert images to colorbins
-            NNinput_images = selected_data._to_classification(images)
+             # convert images to colorbins
+             NNinput_images = selected_data._to_classification(images)
 
         # Run through the NN (validate to keep shape the same)
         NN_images, _ = NNColorizer.validate_NN(NNinput_images,histogram=train_data._colorbins.gethistogram())

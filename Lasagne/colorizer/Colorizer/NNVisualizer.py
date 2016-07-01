@@ -192,11 +192,11 @@ def show_images(ORGbatch, NNbatch, colorspace, classification=False):
     f.subplots_adjust(hspace=padding_px/dpi, wspace=padding_px/dpi)
 
     # and loop over the images
-    for index in range(0,n_images,1):
+    for index in range(n_images):
 
         # Get the image
-        ORG_img = array2img(ORGbatch[int(index/2),:,:,:],colorspace, classification)
-        NN_img  = array2img(NNbatch[int(index/2),:,:,:],colorspace, classification)
+        ORG_img = array2img(ORGbatch[index,:,:,:],colorspace, classification)
+        NN_img  = array2img(NNbatch[index,:,:,:],colorspace, classification)
 
         # Define the different channel ids to show
         # (gray, layer_1, layer_2)
@@ -208,7 +208,7 @@ def show_images(ORGbatch, NNbatch, colorspace, classification=False):
             raise ValueError("Cannot handle this colorspace, can only process 'CIEL*a*b*' and 'HSV'")
 
         # Get the grayscale input
-        ORG_gray = ORGbatch[int(index/2),channels[0],:,:]
+        ORG_gray = ORGbatch[int(index),channels[0],:,:]
 
         # Show original image
         # grayscale input
