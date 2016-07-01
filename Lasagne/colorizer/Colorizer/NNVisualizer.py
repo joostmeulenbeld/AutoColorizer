@@ -299,12 +299,15 @@ def plot_errors(error):
     INPUT:
             error: the error log as saved in the error files
     """
-
+    dpi = 100
+    plot.figure(figsize=(600/dpi, 400/dpi), dpi=dpi)
+    plot.rc('font', family = 'serif', size=10)
     plot.plot(error[:,0],error[:,1],label='Train error')
     plot.plot(error[:,0],error[:,2],label='Validation error')
-    plot.xlabel('epoch')
-    plot.ylabel('error')
+    plot.xlabel('epoch', fontsize = 11)
+    plot.ylabel('error', fontsize = 11)
     plot.legend()
+    plot.grid()
     plot.show()
 
 def print_errors_table(error):
