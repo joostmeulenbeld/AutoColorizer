@@ -4,7 +4,8 @@ The file that defines functions to visualize the output of the NN.
 author: Dawud Hage, written for the NN course IN4015 of the TUDelft
 
 """
-
+import time
+from random import shuffle
 import numpy as np
 from NNPreprocessor import unmap_CIELab, assert_colorspace
 from skimage import color
@@ -61,7 +62,37 @@ def array2img(array, colorspace, classification=False):
     # Now the image is definitely in a supported colorspace
     return Image.fromarray(np.uint8(image*255.),mode='RGB')
 
-
+def show_all_images_first_batch(folder):
+    
+    npyfile = os.listdir(folder)[0]
+    print("File: {}".format(npyfile))
+    
+    a = np.load(os.path.join(folder, npyfile))
+    
+    plot.plot()
+    plot.ion()
+    for i in range(a.shape[0]):
+        print("Image: {}".format(i))
+        plot.imshow(a[i,:,:,:].transpose((1,2,0)))
+        plot.draw()
+        # plot.draw()
+        plot.pause(1.)
+        
+def show_chosen_images(folder, imageindices):
+    
+    assert len(imageindices)==10, "imageindices should contain 10 images"
+    
+    npyfile = os.listdir(folder)[0]
+    print("File: {}".format(npyfile))
+    a = np.load(os.path.join(folder, npyfile))
+    f, ax = plot.subplots(5, 2)
+    f.subplots_adjust(hspace=0.025, wspace=0.025)
+    for i in range(len(imageindices)):
+        ax[i//2, i%2].axis('off')
+        ax[i//2, i%2].imshow(a[imageindices[i],:,:,:].transpose(1,2,0))
+        
+    plot.show()
+        
 
 def show_images_with_ab_channels(ORGbatch, NNbatch, colorspace, classification=False):
     """ 
@@ -303,4 +334,11 @@ def gen_menu(menu_options, str=""):
     
     
 if __name__ == "__main__":
-    show_histogram(247, log10=True)
+    chosenimages = [12, 15, 22, 24, 25, 26, 27, 28, 30, 34, 45, 57, 59, 65, 71, 77, 84, 86, 89, 91, 102, 107, 126, 129, 130, 132, 145, 156, 157, 158]
+    set1indices = [1, 2, 3, 5, 6, 11, 13, 16, 7, 18]
+    set2indices = [30, 29, 25, 24, 23, 22, 21, 20 ,8, 14]
+    print('set1')
+    print([chosenimages[i-1] for i in set1indices])
+    print('set2')
+    print([chosenimages[i-1] for i in set2indices])
+    # show_chosen_images('fruit_validation', [chosenimages[i-1] for i in set1indices])
